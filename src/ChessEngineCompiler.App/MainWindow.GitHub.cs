@@ -104,13 +104,16 @@ public sealed partial class MainWindow
         async Task ConnectAsync(GitHubQuery query, string mode, string? token = null)
         {
             save.IsEnabled = existing.IsEnabled = signIn.IsEnabled = disconnect.IsEnabled = false; cancel.IsEnabled = true;
+            status.Text = "Testing GitHub connection…";
             try
             {
                 var result = await session.RunAsync(query, s => status.Text = s.Message);
                 if (token is not null) _githubCredentials.SaveToken(token); else _githubCredentials.SelectMode(mode);
-                password.Password = ""; status.Text = $"Connected as {result.Login} using {mode}.";
+                var method = mode == "cli" ? "GitHub CLI" : "a personal access token";
+                password.Password = ""; status.Text = $"Connection test successful.\nConnected as {result.Login} using {method}. Your settings are saved; you can close this dialog.";
             }
-            catch (Exception error) { status.Text = error.Message; }
+            catch (OperationCanceledException) { status.Text = "Connection test cancelled."; }
+            catch (Exception error) { status.Text = $"Connection test failed.\n{error.Message}"; }
             finally { save.IsEnabled = existing.IsEnabled = signIn.IsEnabled = disconnect.IsEnabled = true; cancel.IsEnabled = false; }
         }
         save.Click += async (_, _) => { var token = password.Password.Trim(); if (token.Length == 0) { status.Text = "Enter a personal access token."; return; } await ConnectAsync(new GitHubQuery { Engine = _engine, AuthMode = "token", Token = token, Action = GitHubQuery.Types.Action.Account }, "token", token); };

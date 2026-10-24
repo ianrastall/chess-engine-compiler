@@ -1,6 +1,6 @@
 # Chess Engine Compiler handoff
 
-Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.3.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
+Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.3.1. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
 
 ## Build and verify
 

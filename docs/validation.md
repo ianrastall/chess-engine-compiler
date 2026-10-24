@@ -60,3 +60,9 @@ Actual WinUI checks exercise official/development/custom selectors and exact SHA
 The release keeps the WinUI 3/C# 14/.NET 10 + Rust/protobuf ABI structure, Jupiter appearance controls, per-user installer identity and Start Menu upgrade route. No new signing, clean-machine, mixed-monitor or comprehensive screen-reader claim is added. Historical source tags, other GPU families and unavailable/expired artifacts are not implied to be verified by these smoke checks.
 
 The new highlight-selection test exposed a programmatic selection/layout interaction when starting a build after copying a preview. Rendering now clears its own selection under a guard, while real user selection still pauses updates; the corrected real-control test passed.
+
+## Version 0.3.1 — explicit GitHub connection result
+
+Account validation now ends with “Connection test successful”, the account/sign-in method and confirmation that settings are saved and the dialog can be closed. Cancellation and failure have explicit final labels. These messages follow the existing completed account check and credential save; authentication behavior is unchanged.
+
+Formatting, strict Clippy, Rust tests, managed/native integration, actual WinUI log viewport checks and engine-form/render checks passed. A live GitHub CLI account query completed successfully as ianrastall. No credentials were displayed. This is a presentation-only change; no engine invocation changed and no new engine compilation was necessary.

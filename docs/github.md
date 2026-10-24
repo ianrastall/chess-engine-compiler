@@ -12,6 +12,8 @@ CPU detection reads CPUID and Rust's OS-aware feature checks. Only compatible St
 
 Open **Settings > GitHub**:
 
+A completed account check displays **Connection test successful**, followed by the account and sign-in method. It confirms that settings are saved and the dialog can be closed. Cancelled and failed checks are explicitly labelled.
+
 - **Anonymous:** normal public release and source browsing works without an account, within GitHub's unauthenticated rate limits.
 - **Personal access token:** paste into the masked password field and choose Validate and save token. The app validates the account before replacing the stored credential. Windows Credential Manager stores the secret; ui.json contains only the selected authentication mode. The saved token is represented by a masked placeholder and is never revealed, exported, placed on process command lines or written into build logs.
 - **GitHub CLI account:** choose Use GitHub CLI account to validate and use its existing signed-in account. The app reads the credential privately when needed; it does not copy it into its own settings or token store.
