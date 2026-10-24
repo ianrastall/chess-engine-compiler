@@ -22,13 +22,23 @@ try {
         Invoke-Step { cargo clippy --workspace --all-targets --locked -- -D warnings }
         Invoke-Step { cargo test --workspace --locked }
         Invoke-Step { dotnet run --project tests/InteropTests -c Release }
+        Invoke-Step { dotnet build tests/LogViewTests -c Release }
+        $logTestResult = Join-Path $root 'target/log-view-test.txt'
+        if (Test-Path -LiteralPath $logTestResult) { Remove-Item -LiteralPath $logTestResult -Force }
+        $logTest = Join-Path $root 'tests/LogViewTests/bin/x64/Release/net10.0-windows10.0.26100.0/win-x64/LogViewTests.exe'
+        $testProcess = Start-Process -FilePath $logTest -ArgumentList ('"' + $logTestResult + '"') -PassThru -WindowStyle Hidden
+        if (-not $testProcess.WaitForExit(30000)) { $testProcess.Kill(); throw 'WinUI log viewport tests timed out.' }
+        if ($testProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $logTestResult)) { throw 'WinUI log viewport tests failed.' }
+        $testReport = Get-Content -Raw -LiteralPath $logTestResult
+        if (-not $testReport.StartsWith('PASS:')) { throw $testReport }
+        Write-Host $testReport
     }
     Invoke-Step { cargo build -p chess-engine-compiler --release --locked --target-dir target }
     $app = Join-Path $root 'dist/ChessEngineCompiler'
     # Recreate only this verified build output, so removed files cannot leak into installers.
     if ([IO.Path]::GetFullPath($app) -ne [IO.Path]::GetFullPath((Join-Path $root 'dist/ChessEngineCompiler'))) { throw 'Unexpected publish path.' }
     if (Test-Path -LiteralPath $app) { Remove-Item -LiteralPath $app -Recurse -Force }
-    Invoke-Step { dotnet publish src/ChessEngineCompiler.App -c Release -o $app }
+    Invoke-Step { dotnet publish src/ChessEngineCompiler.App -c Release --artifacts-path (Join-Path $root 'target/managed-artifacts') -o $app }
     Copy-Item -LiteralPath (Join-Path $root 'target/x86_64-pc-windows-msvc/release/chess-engine-compiler.exe') -Destination $app -Force
     $scripts = Join-Path $app 'scripts'
     New-Item -ItemType Directory -Path $scripts -Force | Out-Null
@@ -39,7 +49,7 @@ try {
     if (-not $crt) { throw 'MSVC x64 redistributable files were not found.' }
     Get-ChildItem -LiteralPath $crt.FullName -Filter '*.dll' | Copy-Item -Destination $app -Force
     Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $app -Force
-    foreach ($name in 'ChessEngineCompiler.exe','ChessEngineCompiler.pri','compiler_ffi.dll','chess-engine-compiler.exe','vcruntime140.dll') {
+    foreach ($name in 'ChessEngineCompiler.exe','ChessEngineCompiler.pri','compiler_ffi.dll','chess-engine-compiler.exe','vcruntime140.dll','Assets/app.ico') {
         if (-not (Test-Path -LiteralPath (Join-Path $app $name))) { throw "Missing published file: $name" }
     }
     Invoke-Step { & $InnoCompiler /Qp "/DAppVersion=$version" (Join-Path $PSScriptRoot 'installer.iss') }

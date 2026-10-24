@@ -18,12 +18,15 @@ public sealed partial class MainWindow : Window
     private readonly ShellPreferences _preferences;
     private bool _active, _closing, _allowClose;
     private string _output = "", _logPath = "", _lastState = "Ready";
+    private readonly LogPresenter _logPresenter;
     private static readonly string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jupiter", "ChessEngineCompiler");
     private static string ConfigPath => Path.Combine(DataFolder, "build-options.json");
     public BuildViewModel Model { get; } = new();
     public MainWindow()
     {
         InitializeComponent();
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
+        _logPresenter = new LogPresenter(LogScroll, Log, FollowOutput, LogViewStatus);
         Title = "Chess Engine Compiler";
         Directory.CreateDirectory(DataFolder);
         _preferences = ShellPreferences.Load(Path.Combine(DataFolder, "ui.json"));
@@ -89,7 +92,12 @@ public sealed partial class MainWindow : Window
     private void ShowProblem(string message) { Notice.Severity = InfoBarSeverity.Error; Notice.Title = "Build needs attention"; Notice.Message = message; Notice.IsOpen = true; }
     private void Preview_Click(object sender, RoutedEventArgs e)
     {
-        try { Log.Text = "Build preview\n\n" + string.Join("\n\n", _core.Call(Request.Types.Operation.Plan, Options()).Steps); Notice.IsOpen = false; }
+        try
+        {
+            var preview = "Build preview\n\n" + string.Join("\n\n", _core.Call(Request.Types.Operation.Plan, Options()).Steps);
+            _logPresenter.ShowPreview(preview);
+            Notice.IsOpen = false;
+        }
         catch (Exception error) { ShowProblem(error.Message); }
     }
     private void Start_Click(object sender, RoutedEventArgs e)
@@ -98,6 +106,7 @@ public sealed partial class MainWindow : Window
         {
             var options = Options();
             _core.Call(Request.Types.Operation.Start, options);
+            _logPresenter.BeginBuild();
             Notice.IsOpen = false;
             Refresh();
             try { File.WriteAllText(ConfigPath, ScriptExporter.SerializeOptions(options)); }
@@ -120,7 +129,7 @@ public sealed partial class MainWindow : Window
             Configuration.IsEnabled = CompileButton.IsEnabled = StartMenu.IsEnabled = PreviewButton.IsEnabled = PreviewMenu.IsEnabled = !_active;
             CancelButton.IsEnabled = CancelMenu.IsEnabled = s.State == "Running";
             Progress.IsIndeterminate = _active; Progress.Visibility = _active ? Visibility.Visible : Visibility.Collapsed;
-            if ((_active || _lastState is "Running" or "Cancelling") && Log.Text != s.LogTail) Log.Text = s.LogTail;
+            if (_active || _lastState is "Running" or "Cancelling") _logPresenter.Update(s.LogTail);
             _output = s.Output; _logPath = s.LogPath;
             ResultButton.IsEnabled = File.Exists(_output); LogButton.IsEnabled = File.Exists(_logPath);
             if (_lastState != s.State && s.State is "Completed" or "Failed" or "Cancelled")

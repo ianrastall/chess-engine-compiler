@@ -1,16 +1,18 @@
 # Chess Engine Compiler handoff
 
-Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.1.1. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
+Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.1.2. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
 
 ## Build and verify
 
-`pwsh -File build/build.ps1` runs formatting, strict Clippy, Rust tests, managed/native tests and produces installer, portable zip and checksums. Requires the pinned .NET SDK and Rust toolchain, MSVC x64 tools and Inno Setup 6. Pass `-InnoCompiler` for a custom compiler location. `-SkipChecks` only skips checks; it still builds the installer. Dependencies are recorded in Cargo.lock, Directory.Packages.props and NuGet lockfiles. There is no Python runtime or Python domain adapter.
+`pwsh -File build/build.ps1` runs formatting, strict Clippy, Rust tests, managed/native tests and actual WinUI log viewport tests, then produces installer, portable zip and checksums. Requires the pinned .NET SDK and Rust toolchain, MSVC x64 tools and Inno Setup 6. Pass `-InnoCompiler` for a custom compiler location. `-SkipChecks` only skips checks; it still builds the installer. Dependencies are recorded in Cargo.lock, Directory.Packages.props and NuGet lockfiles. There is no Python application runtime or Python domain adapter; the optional icon regeneration script uses development-only Pillow.
 
 Run `pwsh -File build/verify-install.ps1` to test install, repeated-install upgrade, uninstall/data preservation and final reinstall on the current account. It leaves the application installed. Refuses to operate on a pre-existing installation, so it cannot uninstall someone else's installation. The installer must already be built. For subsequent normal upgrades run the installer directly, with all app instances closed.
 
 ## Structure and ownership
 
 `core/domain` owns builds and validation; `cli` calls it directly. `proto/compiler.proto` is the message contract, `core/ffi` ABI v1, and `src/ChessEngineCompiler.Interop` its LibraryImport/SafeHandle wrapper. The WinUI app owns presentation and native folder pickers. The shared [architecture record](docs/architecture.md) describes calls, cancellation and memory lifetimes. [The brief](docs/project-brief.md) owns product scope and the Stockfish → Lc0 sequence.
+
+`Services/LogPresenter.cs` owns follow/pause behavior over a selectable TextBlock and external ScrollViewer. Pausing freezes the displayed snapshot and buffers the latest tail; resuming shows the newest snapshot after layout and scrolls to the bottom. Queued scroll callbacks recheck follow state. `tests/LogViewTests` exercises the real WinUI controls offscreen without keyboard/mouse automation or shared app preferences. The normal app publish uses isolated managed artifacts so a running development preview does not lock its build output.
 
 ## Installation and data
 

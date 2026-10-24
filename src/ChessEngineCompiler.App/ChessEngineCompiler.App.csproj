@@ -7,6 +7,7 @@
     <RootNamespace>Jupiter.ChessEngineCompiler.App</RootNamespace>
     <AssemblyName>ChessEngineCompiler</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
     <WindowsPackageType>None</WindowsPackageType>
@@ -19,6 +20,7 @@
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Manifest Include="$(ApplicationManifest)" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />

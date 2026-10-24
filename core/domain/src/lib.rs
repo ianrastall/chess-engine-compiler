@@ -163,6 +163,10 @@ struct Shared {
 
 impl Shared {
     fn line(&mut self, text: &str) {
+        // Stockfish's Makefile reports four real PGO stages; do not invent percentages.
+        if text.starts_with("Step ") && text.as_bytes().get(6..10) == Some(b"/4. ") {
+            self.snapshot.phase = format!("PGO: {}", text.trim_end_matches(" ..."));
+        }
         if let Some(log) = self.log.as_mut() {
             let _ = writeln!(log, "{text}");
         }
@@ -238,7 +242,7 @@ impl Compiler {
                     state.snapshot.output = output;
                     (
                         "Completed",
-                        "Stockfish compiled and passed UCI verification.".into(),
+                        "Stockfish compiled; UCI and standalone search checks passed.".into(),
                     )
                 }
                 _ if cancel.load(Ordering::SeqCst) => (

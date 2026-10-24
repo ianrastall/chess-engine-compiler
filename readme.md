@@ -20,6 +20,8 @@ Git for Windows on PATH is also supported. Select the MSYS2 root folder in the a
 
 Each build creates a new job folder below the selected output folder. **Open result folder** shows the verified executable and its record; **Open saved log** opens the full tool output. PGO runs Stockfish's own profiling workload. Regular builds skip profiling. Neither mode deletes previous jobs.
 
+**Follow output** keeps the newest log lines visible. Scrolling up, dragging the log scrollbar or selecting text pauses the view so incoming updates do not interrupt reading or copying. Re-enable **Follow output** to catch up; compilation continues while the view is paused. The full log remains available through **Open saved log**. Hover over build options for their meaning and practical tradeoffs, including PGO, architecture, jobs and symbol stripping.
+
 ## CLI and scripts
 
 ```powershell
@@ -38,6 +40,8 @@ Pinned .NET 10 SDK, Rust 1.99.1, Windows SDK and MSVC x64 build tools are requir
 pwsh -File build/build.ps1
 ```
 
-This runs formatting, Clippy, domain/ABI tests and managed/native integration checks, then publishes the required installer, a supplemental portable zip and SHA-256 checksums under `dist/`. Inno Setup 6 is required; packaging fails if it is missing. Use `-InnoCompiler <path-to-ISCC.exe>` for a custom installation. See [the brief](docs/project-brief.md), [architecture](docs/architecture.md), [Jupiter audit](docs/jupiter-conformance.md), [handoff](HANDOFF.md) and [validation record](docs/validation.md).
+This runs formatting, Clippy, domain/ABI tests, managed/native integration checks and actual WinUI log viewport tests, then publishes the required installer, a supplemental portable zip and SHA-256 checksums under `dist/`. Inno Setup 6 is required; packaging fails if it is missing. Use `-InnoCompiler <path-to-ISCC.exe>` for a custom installation. See [the brief](docs/project-brief.md), [architecture](docs/architecture.md), [Jupiter audit](docs/jupiter-conformance.md), [handoff](HANDOFF.md) and [validation record](docs/validation.md).
+
+The app icon is an original neutral rook/compiler mark, with its vector source, PNG preview and multi-resolution ICO under `src/ChessEngineCompiler.App/Assets`. To regenerate those committed assets, run `python build/generate-icon.py` with Pillow installed; Python/Pillow are development-only and are not needed to build or run the app.
 
 The application is MIT licensed. Stockfish and NNUE networks retain upstream licenses. Engine outputs and toolchains are not bundled with the app. This is a new repository; the former StockfishCompiler repository remains intact.

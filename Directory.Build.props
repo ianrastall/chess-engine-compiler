@@ -3,7 +3,7 @@
     <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Authors>Ian Rastall</Authors>
     <Product>Jupiter · Chess Engine Compiler</Product>
     <Platforms>x64</Platforms>
@@ -15,6 +15,7 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
     <RepoRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)'))</RepoRoot>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <Target Name="RejectUnsupportedPlatform" BeforeTargets="Restore;Build" Condition="'$(Platform)' != 'x64' or '$(RuntimeIdentifier)' != 'win-x64'">

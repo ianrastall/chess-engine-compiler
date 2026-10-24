@@ -19,6 +19,7 @@ LicenseFile=..\LICENSE
 OutputDir=..\dist
 OutputBaseFilename=ChessEngineCompiler-{#AppVersion}-win-x64-setup
 UninstallDisplayIcon={app}\ChessEngineCompiler.exe
+SetupIconFile=..\src\ChessEngineCompiler.App\Assets\app.ico
 AppMutex=Local\Jupiter.ChessEngineCompiler
 CloseApplications=no
 RestartApplications=no
@@ -30,7 +31,7 @@ WizardStyle=modern
 Source: "..\dist\ChessEngineCompiler\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
 
 [Icons]
-Name: "{autoprograms}\Jupiter\Chess Engine Compiler"; Filename: "{app}\ChessEngineCompiler.exe"; WorkingDir: "{app}"; AppUserModelID: "Jupiter.ChessEngineCompiler"
+Name: "{autoprograms}\Jupiter\Chess Engine Compiler"; Filename: "{app}\ChessEngineCompiler.exe"; WorkingDir: "{app}"; IconFilename: "{app}\Assets\app.ico"; AppUserModelID: "Jupiter.ChessEngineCompiler"
 
 [Run]
 Filename: "{app}\ChessEngineCompiler.exe"; Description: "Open Chess Engine Compiler"; Flags: nowait postinstall skipifsilent

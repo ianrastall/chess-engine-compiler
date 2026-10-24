@@ -33,47 +33,69 @@
                         <ComboBox Header="Engine" HorizontalAlignment="Stretch" SelectedIndex="0">
                             <ComboBoxItem Content="Stockfish"/>
                         </ComboBox>
-                        <TextBox x:Name="SourceRef" Header="Source tag, branch or commit" Text="{x:Bind Model.SourceRef, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox x:Name="SourceRef" Header="Source tag, branch or commit" Text="{x:Bind Model.SourceRef, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTipService.ToolTip="Choose the official source revision to compile. A release tag such as sf_19 selects that release; master follows current development; a full commit hash selects an exact revision for repeatable builds."/>
                         <TextBlock Text="Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit." Style="{StaticResource ExplanationStyle}"/>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBox x:Name="MsysRoot" Header="MSYS2 root folder" Text="{x:Bind Model.MsysRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox x:Name="MsysRoot" Header="MSYS2 root folder" Text="{x:Bind Model.MsysRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTipService.ToolTip="MSYS2 supplies the Unix-style build tools and UCRT64 GCC C++ compiler used by Stockfish on Windows. Select the installation root, for example C:\msys64, rather than its ucrt64 or bin subfolder. See Help > Build requirements for packages."/>
                             <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseMsys_Click"/>
                         </Grid>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBox x:Name="OutputRoot" Header="Output folder" Text="{x:Bind Model.OutputRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox x:Name="OutputRoot" Header="Output folder" Text="{x:Bind Model.OutputRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTipService.ToolTip="Each build creates a new jobs subfolder containing its source, downloaded network, full log and verified result. Previous builds are retained. Allow space for the source, network and compiler output."/>
                             <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseOutput_Click"/>
                         </Grid>
-                        <ComboBox x:Name="Architecture" Header="CPU architecture" HorizontalAlignment="Stretch" SelectedIndex="0">
-                            <ComboBoxItem Content="native"/><ComboBoxItem Content="x86-64"/>
-                            <ComboBoxItem Content="x86-64-avx2"/><ComboBoxItem Content="x86-64-bmi2"/>
+                        <ComboBox x:Name="Architecture" Header="CPU architecture" HorizontalAlignment="Stretch" SelectedIndex="0"
+                            ToolTipService.ToolTip="Select which CPU instructions the engine may use. native lets Stockfish detect this computer. x86-64 favors compatibility; AVX2 and BMI2 require those CPU features. PGO and verification run the engine here, so incompatible choices are rejected.">
+                            <ComboBoxItem Content="native" ToolTipService.ToolTip="Use Stockfish’s detection for this computer. The result may not run on older CPUs."/>
+                            <ComboBoxItem Content="x86-64" ToolTipService.ToolTip="Use the baseline 64-bit x86 instruction set for broader compatibility, with less CPU-specific optimization."/>
+                            <ComboBoxItem Content="x86-64-avx2" ToolTipService.ToolTip="Use AVX2 vector instructions for neural-network evaluation. Requires an AVX2-capable CPU."/>
+                            <ComboBoxItem Content="x86-64-bmi2" ToolTipService.ToolTip="Use AVX2 plus BMI2 bit-manipulation instructions, including PEXT for move generation. Requires both features; BMI2 is not faster on every CPU."/>
                         </ComboBox>
                         <TextBlock Text="native uses Stockfish’s CPU detection for this computer. x86-64 builds for broader compatibility." Style="{StaticResource ExplanationStyle}"/>
-                        <NumberBox x:Name="Jobs" Header="Parallel jobs" Minimum="1" Maximum="256" SpinButtonPlacementMode="Inline" Value="8"/>
-                        <CheckBox x:Name="Pgo" Content="Profile-guided optimization" IsChecked="True"/>
-                        <CheckBox x:Name="Strip" Content="Strip executable symbols" IsChecked="True"/>
+                        <NumberBox x:Name="Jobs" Header="Parallel jobs" Minimum="1" Maximum="256" SpinButtonPlacementMode="Inline" Value="8"
+                            ToolTipService.ToolTip="Maximum number of compiler tasks to run at once. More jobs can shorten compilation but use more CPU and RAM. Reduce this if the computer becomes unresponsive or compilation runs out of memory; this does not set the engine’s playing threads."/>
+                        <CheckBox x:Name="Pgo" Content="Profile-guided optimization (PGO)" IsChecked="True"
+                            ToolTipService.ToolTip="Build an instrumented engine, run Stockfish’s built-in benchmark to collect execution profiles, then rebuild using those profiles to guide optimization. This takes longer and uses this CPU during training, but can improve engine speed. Turn it off for a faster regular build."/>
+                        <CheckBox x:Name="Strip" Content="Strip executable symbols" IsChecked="True"
+                            ToolTipService.ToolTip="Remove debugging and symbol information from the finished executable to reduce its file size. This does not remove chess features. Turn it off if you need symbols for debugging or diagnosing crashes."/>
                     </StackPanel></ContentControl>
                 </StackPanel>
             </ScrollViewer>
             <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
                 <Button x:Name="CompileButton" Content="Compile Stockfish" Style="{StaticResource AccentButtonStyle}" Click="Start_Click"/>
-                <Button x:Name="PreviewButton" Content="Preview build" Click="Preview_Click"/>
+                    <Button x:Name="PreviewButton" Content="Preview build" Click="Preview_Click" ToolTipService.ToolTip="Validate the selected settings and show the build steps without downloading source or starting compilation."/>
             </StackPanel>
             </Grid>
             <Grid Grid.Column="1" RowSpacing="12">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <Grid>
                     <TextBlock Text="Build output" Style="{StaticResource SectionHeadingStyle}" Margin="0"/>
-                    <Button x:Name="CancelButton" Content="Cancel build" HorizontalAlignment="Right" IsEnabled="False" Click="Cancel_Click"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                        <CheckBox x:Name="FollowOutput" Content="Follow output" IsChecked="True"
+                            ToolTipService.ToolTip="Keep the newest log lines visible. Scrolling up, dragging the scrollbar or selecting text pauses this view so updates do not interrupt reading or copying. Select this again to show the latest output; the build continues either way."/>
+                        <Button x:Name="CancelButton" Content="Cancel build" IsEnabled="False" Click="Cancel_Click" ToolTipService.ToolTip="Stop the running build process and its children. The job folder and saved log remain available; retrying creates a new job."/>
+                    </StackPanel>
                 </Grid>
                 <InfoBar Grid.Row="1" x:Name="Notice" IsOpen="False" IsClosable="True"/>
-                <TextBox Grid.Row="2" x:Name="Log" IsReadOnly="True" AcceptsReturn="True" FontFamily="Cascadia Mono,Consolas" FontSize="12" TextWrapping="NoWrap"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="Build log and command preview"/>
+                <Grid Grid.Row="2" RowSpacing="6">
+                    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Border Background="{ThemeResource JupiterSurfaceBrush}" BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="1" CornerRadius="4">
+                        <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                            HorizontalScrollMode="Enabled" VerticalScrollMode="Enabled" IsTabStop="True" AutomationProperties.Name="Build log viewport">
+                            <TextBlock x:Name="Log" IsTextSelectionEnabled="True" FontFamily="Cascadia Mono,Consolas" FontSize="12" TextWrapping="NoWrap" Padding="12"
+                                Foreground="{ThemeResource JupiterPrimaryTextBrush}" AutomationProperties.Name="Build log and command preview"/>
+                        </ScrollViewer>
+                    </Border>
+                    <TextBlock Grid.Row="1" x:Name="LogViewStatus" Text="Latest 300 lines; the full build log is saved to disk." Style="{StaticResource ExplanationStyle}"/>
+                </Grid>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
                     <Button x:Name="ResultButton" Content="Open result folder" IsEnabled="False" Click="Result_Click"/>
                     <Button x:Name="LogButton" Content="Open saved log" IsEnabled="False" Click="Log_Click"/>
-                    <Button Content="Export build scripts…" Click="Export_Click"/>
+                    <Button Content="Export build scripts…" Click="Export_Click" ToolTipService.ToolTip="Export the selected settings, standalone CLI, and PowerShell/batch scripts. These run the same build outside the GUI. MSYS2 is still required on the computer running them."/>
                 </StackPanel>
             </Grid>
         </Grid>
