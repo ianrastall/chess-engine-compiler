@@ -14,13 +14,20 @@ public sealed class LogPresenter
     private readonly CheckBox _follow;
     private readonly TextBlock _status;
     private string _latest = "";
+    private bool _pendingScroll;
 
     public LogPresenter(ScrollViewer viewport, TextBlock text, CheckBox follow, TextBlock status)
     {
         (_viewport, _text, _follow, _status) = (viewport, text, follow, status);
         follow.Checked += (_, _) => Resume();
-        follow.Unchecked += (_, _) => status.Text = "Log view paused. Select Follow output to show the latest lines.";
+        follow.Unchecked += (_, _) =>
+        {
+            _pendingScroll = false;
+            status.Text = "Log view paused. Select Follow output to show the latest lines.";
+        };
         text.SizeChanged += (_, _) => ScrollToEnd();
+        viewport.SizeChanged += (_, _) => ScrollToEnd();
+        viewport.LayoutUpdated += (_, _) => ApplyPendingScroll();
         viewport.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => Pause()), true);
         viewport.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, e) =>
         {
@@ -66,9 +73,20 @@ public sealed class LogPresenter
         ScrollToEnd();
     }
 
-    private void ScrollToEnd() => _viewport.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+    private void ScrollToEnd()
     {
-        // A pointer/keyboard event may have paused following after this callback was queued.
-        if (_follow.IsChecked == true) _viewport.ChangeView(null, _viewport.ScrollableHeight, null, true);
-    });
+        if (_follow.IsChecked != true) return;
+        _pendingScroll = true;
+        _viewport.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, ApplyPendingScroll);
+    }
+
+    private void ApplyPendingScroll()
+    {
+        // Text size can update before the ScrollViewer has incorporated its new extent.
+        // Leave the request pending until layout catches up, including on first render.
+        if (!_pendingScroll || _follow.IsChecked != true || _viewport.ViewportHeight <= 0
+            || _viewport.ExtentHeight < _text.ActualHeight - 1) return;
+        _pendingScroll = false;
+        _viewport.ChangeView(null, _viewport.ScrollableHeight, null, true);
+    }
 }

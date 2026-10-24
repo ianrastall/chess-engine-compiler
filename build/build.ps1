@@ -27,8 +27,13 @@ try {
         if (Test-Path -LiteralPath $logTestResult) { Remove-Item -LiteralPath $logTestResult -Force }
         $logTest = Join-Path $root 'tests/LogViewTests/bin/x64/Release/net10.0-windows10.0.26100.0/win-x64/LogViewTests.exe'
         $testProcess = Start-Process -FilePath $logTest -ArgumentList ('"' + $logTestResult + '"') -PassThru -WindowStyle Hidden
+        $testHandle = $testProcess.Handle
         if (-not $testProcess.WaitForExit(30000)) { $testProcess.Kill(); throw 'WinUI log viewport tests timed out.' }
-        if ($testProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $logTestResult)) { throw 'WinUI log viewport tests failed.' }
+        $testProcess.Refresh()
+        if ($testProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $logTestResult)) {
+            $detail = if (Test-Path -LiteralPath $logTestResult) { Get-Content -Raw -LiteralPath $logTestResult } else { 'No test report was written.' }
+            throw "WinUI log viewport tests failed (exit $($testProcess.ExitCode)): $detail"
+        }
         $testReport = Get-Content -Raw -LiteralPath $logTestResult
         if (-not $testReport.StartsWith('PASS:')) { throw $testReport }
         Write-Host $testReport
