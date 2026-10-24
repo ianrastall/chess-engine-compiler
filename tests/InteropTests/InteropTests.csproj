@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../src/ChessEngineCompiler.Interop/ChessEngineCompiler.Interop.csproj" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/ChessEngineCompiler.App/Services/ScriptExporter.cs" Link="ScriptExporter.cs" /></ItemGroup>
+  <Import Project="$(RepoRoot)build/native.targets" />
+</Project>

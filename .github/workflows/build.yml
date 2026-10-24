@@ -1,0 +1,28 @@
+name: Build Windows app
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      ContinuousIntegrationBuild: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Install pinned Rust toolchain
+        shell: pwsh
+        run: rustup show
+      - name: Check and publish
+        shell: pwsh
+        run: ./build/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChessEngineCompiler-win-x64
+          path: dist/*.zip

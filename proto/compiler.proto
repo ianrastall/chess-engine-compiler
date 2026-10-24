@@ -1,0 +1,35 @@
+syntax = "proto3";
+package compiler;
+option csharp_namespace = "Jupiter.ChessEngineCompiler.Messages";
+
+message BuildOptions {
+  string engine = 1;
+  string source_ref = 2;
+  string msys_root = 3;
+  string output_root = 4;
+  string architecture = 5;
+  uint32 jobs = 6;
+  bool pgo = 7;
+  bool strip = 8;
+}
+message Request {
+  uint64 request_id = 1;
+  enum Operation { STATUS = 0; DEFAULTS = 1; PLAN = 2; START = 3; CANCEL = 4; }
+  Operation operation = 2;
+  BuildOptions options = 3;
+}
+message Snapshot {
+  string state = 1;
+  string phase = 2;
+  string message = 3;
+  string output = 4;
+  string log_path = 5;
+  string log_tail = 6;
+}
+message Response {
+  uint64 request_id = 1;
+  string error = 2;
+  BuildOptions options = 3;
+  repeated string steps = 4;
+  Snapshot snapshot = 5;
+}

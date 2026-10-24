@@ -1,0 +1,10 @@
+{
+  "engine": "stockfish",
+  "sourceRef": "sf_19",
+  "msysRoot": "C:\\msys64",
+  "outputRoot": "C:\\Users\\YourName\\Documents\\Chess engine builds",
+  "architecture": "native",
+  "jobs": 8,
+  "pgo": true,
+  "strip": true
+}
