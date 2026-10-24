@@ -1,6 +1,6 @@
 # Chess Engine Compiler
 
-Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.2 supports Stockfish and Lc0.
+Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.3 supports Stockfish and Lc0, GitHub version browsing and separate binary downloads.
 
 Select an official Stockfish tag, branch or commit, choose build options and compile. The GUI shows the current phase and live output, can cancel compilation, and saves the executable, exact source commit, compiler version, settings, source archive and full log. Export build scripts creates PowerShell and batch entry points with a standalone CLI and the selected configuration.
 
@@ -25,6 +25,18 @@ Each build creates a new job folder below the selected output folder. **Open res
 ## Lc0
 
 Select **Lc0** to show its backend, Python/Meson, Visual Studio, CUDA and network controls. Stockfish and Lc0 retain separate settings. Supported Lc0 backends are NVIDIA CUDA and CPU Eigen. Each result includes the selected network and any required CUDA runtime DLLs, and must pass a real standalone neural-network search. See [Lc0 tools, networks and build instructions](docs/lc0.md). The app does not install compiler tools.
+
+## Versions, architecture and GitHub
+
+The **Compile** tab preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
+
+Stockfish detects this CPU and offers only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
+
+**Settings > GitHub** supports anonymous access, a masked personal access token saved in Windows Credential Manager, or an existing GitHub CLI account. **Sign in through browser** uses GitHub CLI's device-code flow. Tokens never enter build JSON, exported scripts or logs. Authentication raises API limits and enables authorized workflow downloads. See [GitHub access and downloads](docs/github.md).
+
+The separate **Downloads** tab lists release assets and authenticated workflow artifacts for either engine. Downloads can run alongside compilation. Each download gets a new folder and SHA-256/provenance record; published digests are verified when provided. Archives are not automatically extracted or executed. Expired artifacts are unavailable.
+
+**Copy log** copies the full saved log or the current preview. Command strings, warnings and errors are highlighted in the selectable GUI log. Build tools prefer PowerShell 7 when installed, with direct execution as the fallback; interactive UCI input stays direct. **View > Watch log in PowerShell** opens a separate colour-coded live viewer. PowerShell is not required by the installer.
 
 ## CLI and scripts
 

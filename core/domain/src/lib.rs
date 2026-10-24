@@ -15,6 +15,8 @@ use std::{
 };
 
 type Result<T> = std::result::Result<T, String>;
+pub mod github;
+pub mod hardware;
 mod lc0;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -33,6 +35,7 @@ pub struct BuildOptions {
     pub visual_studio: String,
     pub cuda_root: String,
     pub weights_path: String,
+    pub auto_architecture: bool,
 }
 
 impl Default for BuildOptions {
@@ -54,6 +57,7 @@ impl Default for BuildOptions {
             visual_studio: String::new(),
             cuda_root: String::new(),
             weights_path: String::new(),
+            auto_architecture: false,
         }
     }
 }
@@ -62,7 +66,11 @@ pub fn defaults(engine: &str) -> BuildOptions {
     if engine == "lc0" {
         lc0::defaults()
     } else {
-        BuildOptions::default()
+        BuildOptions {
+            auto_architecture: true,
+            architecture: hardware::detect().recommended,
+            ..BuildOptions::default()
+        }
     }
 }
 
@@ -118,6 +126,11 @@ fn git_executable(root: &Path) -> Option<PathBuf> {
 }
 
 pub fn plan(options: &BuildOptions) -> Result<Plan> {
+    let mut resolved = options.clone();
+    if resolved.engine == "stockfish" && resolved.auto_architecture {
+        resolved.architecture = hardware::detect().recommended;
+    }
+    let options = &resolved;
     if options.engine != "stockfish" && options.engine != "lc0" {
         return Err("Select Stockfish or Lc0.".into());
     }
@@ -142,18 +155,7 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     if options.engine == "lc0" {
         return lc0::plan(options);
     }
-    let compatible = match options.architecture.as_str() {
-        "native" | "x86-64" => true,
-        "x86-64-avx2" => {
-            std::is_x86_feature_detected!("avx2") && std::is_x86_feature_detected!("popcnt")
-        }
-        "x86-64-bmi2" => {
-            std::is_x86_feature_detected!("avx2")
-                && std::is_x86_feature_detected!("bmi2")
-                && std::is_x86_feature_detected!("popcnt")
-        }
-        _ => return Err("Select native, x86-64, x86-64-avx2 or x86-64-bmi2.".into()),
-    };
+    let compatible = hardware::detect().choices.contains(&options.architecture);
     if !compatible {
         return Err(
             "This CPU cannot run the selected architecture. Select native or x86-64.".into(),
@@ -181,6 +183,7 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
 }
 
 struct Shared {
+    host_reported: bool,
     snapshot: Snapshot,
     lines: VecDeque<String>,
     log: Option<File>,
@@ -203,6 +206,7 @@ impl Shared {
 }
 
 pub struct Compiler {
+    pub github: Mutex<github::Worker>,
     shared: Arc<Mutex<Shared>>,
     cancel: Arc<AtomicBool>,
     worker: Mutex<Option<JoinHandle<()>>>,
@@ -212,7 +216,9 @@ pub struct Compiler {
 impl Default for Compiler {
     fn default() -> Self {
         Self {
+            github: Mutex::new(github::Worker::default()),
             shared: Arc::new(Mutex::new(Shared {
+                host_reported: false,
                 snapshot: Snapshot {
                     state: "Ready".into(),
                     phase: "Configure build".into(),
@@ -238,7 +244,7 @@ impl Compiler {
 
     pub fn start(&self, options: BuildOptions) -> Result<()> {
         let _gate = self.gate.lock().unwrap();
-        plan(&options)?;
+        let options = plan(&options)?.options;
         if matches!(self.snapshot().state.as_str(), "Running" | "Cancelling") {
             return Err("A build is already running.".into());
         }
@@ -249,6 +255,7 @@ impl Compiler {
         {
             let mut shared = self.shared.lock().unwrap();
             shared.lines.clear();
+            shared.host_reported = false;
             shared.snapshot = Snapshot {
                 state: "Running".into(),
                 phase: "Prepare workspace".into(),
@@ -349,6 +356,39 @@ fn run(
     run_unlogged(command, shared, cancel, timeout, input)
 }
 
+fn powershell_executable() -> Option<PathBuf> {
+    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+        .map(|p| p.join("pwsh.exe"))
+        .chain(
+            std::env::var_os("ProgramFiles")
+                .map(PathBuf::from)
+                .map(|p| p.join("PowerShell/7/pwsh.exe")),
+        )
+        .find(|p| p.is_file())
+}
+
+fn powershell_command(original: &Command, host: &Path) -> Result<Command> {
+    let arguments: Vec<_> = original
+        .get_args()
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+    let spec = serde_json::json!({"executable":original.get_program().to_string_lossy(),"arguments":arguments});
+    let mut command = Command::new(host);
+    command.args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; $PSNativeCommandArgumentPassing='Standard'; $PSNativeCommandUseErrorActionPreference=$false; $PSStyle.OutputRendering='PlainText'; try { $spec=ConvertFrom-Json -InputObject $env:CEC_PROCESS_SPEC; Remove-Item Env:CEC_PROCESS_SPEC; & $spec.executable @($spec.arguments); exit $LASTEXITCODE } catch { [Console]::Error.WriteLine('PowerShell could not start the selected build tool.'); exit 1 }"]);
+    for (key, value) in original.get_envs() {
+        if let Some(value) = value {
+            command.env(key, value);
+        } else {
+            command.env_remove(key);
+        }
+    }
+    command.env("CEC_PROCESS_SPEC", spec.to_string());
+    if let Some(dir) = original.get_current_dir() {
+        command.current_dir(dir);
+    }
+    Ok(command)
+}
+
 fn run_unlogged(
     command: &mut Command,
     shared: &Arc<Mutex<Shared>>,
@@ -359,6 +399,27 @@ fn run_unlogged(
     if cancel.load(Ordering::SeqCst) {
         return Err("Cancelled".into());
     }
+    let mut hosted;
+    let command = if input.is_none()
+        && let Some(host) = powershell_executable()
+    {
+        hosted = powershell_command(command, &host)?;
+        let mut state = shared.lock().unwrap();
+        if !state.host_reported {
+            state.line("Process host: PowerShell 7 (interactive UCI checks use direct input)");
+            state.host_reported = true;
+        }
+        &mut hosted
+    } else {
+        if input.is_none() {
+            let mut state = shared.lock().unwrap();
+            if !state.host_reported {
+                state.line("Process host: native (PowerShell 7 was not found)");
+                state.host_reported = true;
+            }
+        }
+        command
+    };
     let mut child = hidden(command)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

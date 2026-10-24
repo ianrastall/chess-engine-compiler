@@ -28,6 +28,7 @@ impl From<messages::BuildOptions> for BuildOptions {
             visual_studio: o.visual_studio,
             cuda_root: o.cuda_root,
             weights_path: o.weights_path,
+            auto_architecture: o.auto_architecture,
         }
     }
 }
@@ -47,6 +48,7 @@ impl From<BuildOptions> for messages::BuildOptions {
             visual_studio: o.visual_studio,
             cuda_root: o.cuda_root,
             weights_path: o.weights_path,
+            auto_architecture: o.auto_architecture,
         }
     }
 }
@@ -112,6 +114,40 @@ pub unsafe extern "C" fn cec_call(
         let operation = messages::request::Operation::try_from(request.operation);
         use messages::request::Operation::*;
         let result = match operation {
+            Ok(Hardware) => {
+                let h = compiler_core::hardware::detect();
+                response.hardware = Some(messages::Hardware {
+                    cpu_name: h.cpu_name,
+                    recommended: h.recommended,
+                    explanation: h.explanation,
+                    choices: h.choices,
+                });
+                Ok(())
+            }
+            Ok(GithubStart) => match request.github {
+                Some(q) => core
+                    .github
+                    .lock()
+                    .unwrap()
+                    .start(compiler_core::github::Query {
+                        action: q.action,
+                        engine: q.engine,
+                        auth_mode: q.auth_mode,
+                        token: q.token,
+                        page: q.page,
+                        id: q.id,
+                        output_folder: q.output_folder,
+                    }),
+                None => Err("GitHub options are required.".into()),
+            },
+            Ok(GithubStatus | GithubCancel) => {
+                let worker = core.github.lock().unwrap();
+                if operation == Ok(GithubCancel) {
+                    worker.cancel();
+                }
+                response.github = Some(worker.snapshot().into());
+                Ok(())
+            }
             Ok(Status) => Ok(()),
             Ok(Defaults) => {
                 response.options = Some(
@@ -153,6 +189,46 @@ pub unsafe extern "C" fn cec_call(
         0
     }))
     .unwrap_or(2)
+}
+impl From<compiler_core::github::NetworkSnapshot> for messages::GitHubSnapshot {
+    fn from(s: compiler_core::github::NetworkSnapshot) -> Self {
+        let source = |v: compiler_core::github::SourceVersion| messages::SourceVersion {
+            id: v.id,
+            label: v.label,
+            reference: v.reference,
+            date: v.date,
+            url: v.url,
+            prerelease: v.prerelease,
+        };
+        Self {
+            state: s.state,
+            message: s.message,
+            releases: s.releases.into_iter().map(source).collect(),
+            development: s.development.into_iter().map(source).collect(),
+            items: s
+                .items
+                .into_iter()
+                .map(|i| messages::DownloadItem {
+                    id: i.id,
+                    name: i.name,
+                    size: i.size,
+                    date: i.date,
+                    digest: i.digest,
+                    expired: i.expired,
+                    details: i.details,
+                })
+                .collect(),
+            login: s.login,
+            output: s.output,
+            received: s.received,
+            total: s.total,
+            page: s.page,
+            more: s.more,
+            default_branch: s.default_branch,
+            releases_more: s.releases_more,
+            development_more: s.development_more,
+        }
+    }
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cec_result_bytes(
@@ -205,6 +281,7 @@ mod tests {
                 request_id: 42,
                 operation: 1,
                 options: None,
+                github: None,
             }
             .encode_to_vec();
             let mut result = ptr::null_mut();

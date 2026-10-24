@@ -3,6 +3,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using VirtualKey = Windows.System.VirtualKey;
+using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
+using System.Text.RegularExpressions;
 
 namespace Jupiter.ChessEngineCompiler.App.Services;
 
@@ -15,6 +18,9 @@ public sealed class LogPresenter
     private readonly TextBlock _status;
     private string _latest = "";
     private bool _pendingScroll;
+    private bool _rendering;
+    public string LatestText => _latest;
+    public bool IsPreview { get; private set; }
 
     public LogPresenter(ScrollViewer viewport, TextBlock text, CheckBox follow, TextBlock status)
     {
@@ -26,7 +32,7 @@ public sealed class LogPresenter
             status.Text = "Log view paused. Select Follow output to show the latest lines.";
         };
         text.SizeChanged += (_, _) => ScrollToEnd();
-        text.SelectionChanged += (_, _) => { if (text.SelectedText.Length > 0) Pause(); };
+        text.SelectionChanged += (_, _) => { if (!_rendering && text.SelectedText.Length > 0) Pause(); };
         viewport.SizeChanged += (_, _) => ScrollToEnd();
         viewport.LayoutUpdated += (_, _) => ApplyPendingScroll();
         viewport.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => Pause()), true);
@@ -47,13 +53,14 @@ public sealed class LogPresenter
         _latest = text;
         if (_follow.IsChecked == true && _text.Text != text)
         {
-            _text.Text = text;
+            Render(text);
             ScrollToEnd();
         }
     }
 
     public void BeginBuild()
     {
+        IsPreview = false;
         _latest = "";
         _follow.IsChecked = true;
         Resume();
@@ -61,8 +68,9 @@ public sealed class LogPresenter
 
     public void ShowPreview(string text)
     {
+        IsPreview = true;
         Pause();
-        _latest = _text.Text = text;
+        _latest = text; Render(text);
         _status.Text = "Build preview; compilation has not started.";
         _viewport.ChangeView(0, 0, null, true);
     }
@@ -72,6 +80,33 @@ public sealed class LogPresenter
         _status.Text = "Latest 300 lines; the full build log is saved to disk.";
         Update(_latest);
         ScrollToEnd();
+    }
+
+    private void Render(string value)
+    {
+        _rendering = true;
+        try
+        {
+            _text.Select(_text.ContentStart, _text.ContentStart);
+            // Runs retain ordinary text selection/copy. Color never alters the saved log.
+            _text.Inlines.Clear();
+            var contrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
+            var command = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 124, 193, 229));
+            var literal = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 199, 145));
+            var warning = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 224, 189, 112));
+            var error = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 244, 145, 145));
+            foreach (var line in Regex.Split(value, "(?<=\\n)"))
+            {
+                if (!contrast && line.StartsWith("$ ", StringComparison.Ordinal))
+                {
+                    foreach (Match token in Regex.Matches(line, "\"(?:\\\\.|[^\"\\\\])*\"|'[^']*'|[^\"']+"))
+                        _text.Inlines.Add(new Run { Text = token.Value, Foreground = token.Value.StartsWith('"') || token.Value.StartsWith('\'') ? literal : command });
+                }
+                else _text.Inlines.Add(new Run { Text = line, Foreground = contrast ? _text.Foreground : line.Contains("error", StringComparison.OrdinalIgnoreCase) || line.StartsWith("FAILED:", StringComparison.Ordinal) ? error : line.Contains("warning", StringComparison.OrdinalIgnoreCase) ? warning : _text.Foreground });
+            }
+            _text.Select(_text.ContentStart, _text.ContentStart);
+        }
+        finally { _rendering = false; }
     }
 
     private void ScrollToEnd()

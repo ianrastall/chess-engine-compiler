@@ -12,6 +12,7 @@ References: workspace AGENTS.md, jupiter-plan.md, canonical WinUI/Rust stack, Ju
 | Native Fluent controls and warm dark resources | Native MenuBar, fields, selectors, InfoBar, ProgressBar, dialogs and scrollable options; Jupiter window/surface/text/separator brushes and contrast-theme resources |
 | Functional copy, focused utility layout | Concrete build/source/output commands; no slogan, decorative introduction, compulsory sidebar or placeholder engine support |
 | Engine-specific configuration | Stockfish and Lc0 forms show their actual toolchain/backend controls and retain independent selections; shared output, jobs, log and build actions remain in the same places |
+| GitHub and downloads | Native source selectors, separate Downloads tab and Settings > GitHub dialog; Rust owns HTTPS/verification/cancellation, Windows Credential Manager owns token persistence; compilation stays independent |
 | Windows accent and compact chooser | Live UISettings accent tracking, persisted custom override, Settings > Appearance with required labels and reset action |
 | Traditional menu and native window behavior | File, Build, Settings, Help; native caption/system menu; DPI-aware geometry and persisted/clamped previous window bounds |
 | Visible progress, cancellation and results | Explicit phases and indeterminate progress, Running/Cancelling/Completed/Cancelled/Failed states, real process-tree cancellation and persistent/copyable logs |

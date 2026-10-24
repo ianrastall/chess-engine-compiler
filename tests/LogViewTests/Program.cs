@@ -53,11 +53,16 @@ public sealed partial class TestApp : Application
             void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
             bool AtBottom() => Math.Abs(viewport.VerticalOffset - viewport.ScrollableHeight) < 2;
 
+            var colored = "$ \"git.exe\" fetch \"master\"\nwarning: fixture warning\nerror: fixture diagnostic";
+            presenter.ShowPreview(colored); await Settle();
+            Require(text.Text == colored && presenter.LatestText == colored && presenter.IsPreview, "Highlighting changed the plain log text.");
+            text.Select(text.ContentStart, text.ContentEnd);
+            Require(text.SelectedText.Replace("\r\n", "\n") == colored, "Highlighted runs could not be selected as plain text.");
             presenter.BeginBuild(); presenter.Update(Lines(0)); await Settle(() => viewport.ScrollableHeight > 100 && AtBottom());
             Require(viewport.ScrollableHeight > 100, "The real WinUI viewport was not laid out.");
             Require(AtBottom(), "Initial output did not scroll to the bottom.");
             presenter.Update(Lines(500)); await Settle();
-            Require(AtBottom() && text.Text.EndsWith("000799"), "A rolling tail with unchanged height lost the latest lines.");
+            Require(AtBottom() && text.Text.EndsWith("000799"), $"A rolling tail with unchanged height lost the latest lines. Follow={follow.IsChecked}, offset={viewport.VerticalOffset}, max={viewport.ScrollableHeight}, selection={text.SelectedText.Length}, tail={text.Text[^Math.Min(12,text.Text.Length)..]}");
 
             presenter.Update(Lines(600)); // queues an automatic scroll
             presenter.Pause(); // simulates input arriving before that queued callback runs

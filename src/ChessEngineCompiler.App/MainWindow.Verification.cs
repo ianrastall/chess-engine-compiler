@@ -13,6 +13,19 @@ public sealed partial class MainWindow
     {
         Bindings.Update();
         static void Require(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
+        AutoArchitecture.IsChecked = true;
+        Require(!Architecture.IsEnabled && Options().Architecture == _hardware.Recommended, "Automatic architecture did not select a compatible recommendation.");
+        AutoArchitecture.IsChecked = false;
+        _loadingSources = true;
+        OfficialVersions.ItemsSource = new[] { new Messages.SourceVersion { Label = "Stockfish 19", Reference = "sf_19" } };
+        DevelopmentVersions.ItemsSource = new[] { new Messages.SourceVersion { Label = "Development fixture", Reference = new string('a', 40) } };
+        _loadingSources = false;
+        SourceChannel.SelectedIndex = 0;
+        Require(Model.SourceRef == "sf_19" && SourceRef.IsReadOnly, "Official source selection did not use its tag.");
+        SourceChannel.SelectedIndex = 1;
+        Require(Model.SourceRef == new string('a', 40), "Development selection did not pin its commit SHA.");
+        SourceChannel.SelectedIndex = 2;
+        Require(!SourceRef.IsReadOnly, "Custom refs are not editable.");
         Model.SourceRef = "sf_19"; Model.OutputRoot = @"D:\Example output";
         Jobs.Value = 2; Pgo.IsChecked = true; Architecture.SelectedIndex = 3;
         var stockfish = Options();
@@ -32,6 +45,7 @@ public sealed partial class MainWindow
         Backend.SelectedIndex = 0;
         Require(CudaRoot.Visibility == Visibility.Visible, "CUDA selection did not show its toolkit setting.");
         Model.SourceRef = "v0.32.1";
+        _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);
         Require(SourceRef.Text == Model.SourceRef, "Source revision binding was not connected to the control.");
         Require(Root.ActualWidth > 500 && Root.ActualHeight > 300, "Main window did not lay out.");
@@ -43,7 +57,11 @@ public sealed partial class MainWindow
         OptionsScroll.ChangeView(null, 0, null, true);
         Root.UpdateLayout(); await Task.Delay(150);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "stockfish.png"));
-        File.WriteAllText(report, "PASS: real WinUI engine switching, separate option retention, shared defaults, engine-specific controls/actions, CUDA visibility and rendered layouts. No build or shared preference mutation.");
+        WorkflowTabs.SelectedIndex = 1;
+        DownloadPane.VerifyControls();
+        Root.UpdateLayout(); await Task.Delay(200);
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "downloads.png"));
+        File.WriteAllText(report, "PASS: real WinUI engine switching, separate option retention, automatic/manual architecture, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)
@@ -63,6 +81,8 @@ public sealed partial class MainWindow
     internal async Task CloseUiTestAsync()
     {
         _timer.Stop();
+        await _sourceSession.DisposeAsync();
+        await DownloadPane.DisposeAsync();
         await Task.Run(_core.Dispose);
         _allowClose = true; Close();
     }

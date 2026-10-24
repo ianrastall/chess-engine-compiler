@@ -21,9 +21,36 @@ catch (InvalidOperationException e) when (e.Message.Contains("Eigen")) { }
 lc0.PythonPath = @"C:\tools\python.exe"; lc0.WeightsPath = @"D:\networks\network.pb.gz";
 var roundTrip = Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(lc0));
 if (!roundTrip.Equals(lc0)) throw new Exception("Lc0 script configuration did not round-trip.");
+var hardware = core.Call(Request.Types.Operation.Hardware).Hardware;
+if (!hardware.Choices.Contains(hardware.Recommended)) throw new Exception("Unsupported architecture recommendation.");
+core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
+var networkDeadline = DateTime.UtcNow.AddSeconds(5);
+GitHubSnapshot network;
+do { network = core.Call(Request.Types.Operation.GithubStatus).Github; if (network.State != "Running") break; Thread.Sleep(50); } while (DateTime.UtcNow < networkDeadline);
+if (network.State != "Failed" || !network.Message.Contains("anonymous")) throw new Exception("Typed GitHub worker/error round-trip failed.");
+var credentialFolder = Path.Combine(Path.GetTempPath(), "cec-credential-test-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(credentialFolder);
+var preferences = Jupiter.ChessEngineCompiler.App.Services.ShellPreferences.Load(Path.Combine(credentialFolder, "ui.json"));
+var credentials = new Jupiter.ChessEngineCompiler.App.Services.GitHubCredentials(credentialFolder, preferences);
+try
+{
+    credentials.SaveToken("fixture-token-never-a-real-credential");
+    var query = credentials.Prepare(new GitHubQuery());
+    if (query.Token != "fixture-token-never-a-real-credential" || query.AuthMode != "token") throw new Exception("Windows credential round-trip failed.");
+    if (File.ReadAllText(preferences.Path).Contains("fixture-token")) throw new Exception("Credential leaked into preferences.");
+    query.Token = "";
+}
+finally { credentials.Disconnect(); Directory.Delete(credentialFolder, true); }
 Console.WriteLine("Managed/native round-trip, result lifetime, validation and idle cancellation passed.");
 if (args is ["--export-smoke", var app, var parent, var config])
 {
     var options = Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(File.ReadAllText(config));
     Console.WriteLine(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.Export(options, parent, app));
+}
+if (args is ["--github-smoke", var engine])
+{
+    core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = engine, AuthMode = "cli", Action = GitHubQuery.Types.Action.Catalog, Page = 1 });
+    do { network = core.Call(Request.Types.Operation.GithubStatus).Github; if (network.State != "Running") break; Thread.Sleep(150); } while (true);
+    if (network.State != "Completed" || network.Releases.Count == 0 || network.Development.Count == 0) throw new Exception(network.Message);
+    Console.WriteLine($"Managed/native GitHub catalog passed: {network.Releases.Count} releases, {network.Development.Count} development versions.");
 }

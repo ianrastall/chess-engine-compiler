@@ -1,6 +1,6 @@
 # Chess Engine Compiler handoff
 
-Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.2.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
+Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.3.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
 
 ## Build and verify
 
@@ -25,3 +25,10 @@ UI/accent/window preferences and recent build selections: `%LOCALAPPDATA%/Jupite
 See [validation](docs/validation.md) and [Jupiter conformance](docs/jupiter-conformance.md) for the evidence and outstanding platform checks. Stockfish regular and PGO builds are verified. Lc0 supports MSVC/Meson/Ninja with CUDA or CPU Eigen; see docs/lc0.md for tools, network handling and backend limits. Stockfish uses MSYS2 UCRT64 GCC. Clean-machine runtime/signing trust, ARM, comprehensive accessibility and mixed-monitor DPI are not claimed as tested. Ian owns package/runtime servicing and republishing self-contained releases.
 
 The real application also supports `--verify-ui <report-path>` for isolated offscreen engine-form verification and layout captures. It uses a separate state directory beside the report and never starts an engine build or changes normal user preferences. The default build runs this check on the published WinUI application.
+
+
+GitHub metadata/authentication/downloads are owned by `core/domain/src/github.rs`, with a separate worker per typed core handle. The WinUI source browser and Downloads view use independent `GitHubSession` instances, leaving compilation independent. Credentials are platform storage in `Services/GitHubCredentials.cs`: Windows Credential Manager, namespaced by the state folder. Only the authentication mode is saved in ui.json. Disconnect removes this app's saved token and selects anonymous access; it never logs GitHub CLI out of other applications. Browser sign-in is an explicit user action through installed GitHub CLI, not a bundled OAuth client registration.
+
+`hardware.rs` owns CPUID/OS feature detection, compatible targets and the recommendation. `auto_architecture` is an additive protobuf/build field; absent legacy JSON fields default to manual so existing scripts retain their target. New GUI defaults enable automatic selection. PowerShell hosting carries executable/argument data as JSON in a private process environment value, never by interpolating shell command text. Native interactive UCI verification remains direct. The app's configured GitHub credential is used only for API requests and is not added to engine build subprocesses.
+
+See docs/github.md for API permissions, pagination, binary provenance, expiry, cancellation and setup. The CLI additionally exposes hardware and github browsing/download commands; CLI authentication is anonymous or explicitly selected GitHub CLI, with no token command-line argument.

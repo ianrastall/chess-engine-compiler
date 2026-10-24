@@ -1,0 +1,50 @@
+<UserControl x:Class="Jupiter.ChessEngineCompiler.App.Views.DownloadsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="24,12,24,16" RowSpacing="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Spacing="8">
+            <TextBlock Text="GitHub downloads" Style="{StaticResource PageHeadingStyle}"/>
+            <TextBlock Text="Download existing release assets or workflow archives. Downloads run separately from compilation and do not install or execute files." Style="{StaticResource ExplanationStyle}"/>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <ComboBox x:Name="DownloadEngine" Header="Engine" SelectedIndex="0" SelectionChanged="Engine_Changed" Width="200"><ComboBoxItem Content="Stockfish"/><ComboBoxItem Content="Lc0"/></ComboBox>
+                <Button x:Name="CatalogRefresh" Content="Refresh releases" VerticalAlignment="Bottom" Click="CatalogRefresh_Click"/>
+                <Button x:Name="CatalogNewer" Content="Newer releases" VerticalAlignment="Bottom" IsEnabled="False" Click="CatalogNewer_Click"/>
+                <Button x:Name="CatalogOlder" Content="Older releases" VerticalAlignment="Bottom" IsEnabled="False" Click="CatalogOlder_Click"/>
+            </StackPanel>
+        </StackPanel>
+        <Pivot Grid.Row="1" x:Name="Kind" SelectionChanged="Kind_Changed"><PivotItem Header="Release assets"/><PivotItem Header="Workflow artifacts"/></Pivot>
+        <StackPanel Grid.Row="2" Spacing="8">
+            <TextBlock x:Name="AuthenticationStatus" Style="{StaticResource ExplanationStyle}"/>
+            <ComboBox x:Name="Release" Header="GitHub release" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="Release_Changed" ToolTipService.ToolTip="Includes official releases and prereleases published by the engine project. All attached assets are listed so you can choose a binary for your operating system and hardware."/>
+            <TextBlock x:Name="CatalogStatus" Style="{StaticResource ExplanationStyle}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="RefreshItems" Content="Refresh list" Click="RefreshItems_Click"/>
+                <Button x:Name="Previous" Content="Newer" IsEnabled="False" Click="Previous_Click"/>
+                <Button x:Name="Next" Content="Older" IsEnabled="False" Click="Next_Click"/>
+                <Button Content="Cancel loading" Click="CancelLoading_Click"/>
+            </StackPanel>
+        </StackPanel>
+        <InfoBar Grid.Row="3" x:Name="Notice" IsOpen="False" IsClosable="True"/>
+        <ListView Grid.Row="4" x:Name="Files" SelectionMode="Single" SelectionChanged="Files_Changed" AutomationProperties.Name="Available GitHub downloads">
+            <ListView.ItemTemplate><DataTemplate><StackPanel Spacing="3" Padding="8">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding SizeLabel}" Style="{StaticResource ExplanationStyle}"/>
+                <TextBlock Text="{Binding Details}" Style="{StaticResource ExplanationStyle}"/>
+            </StackPanel></DataTemplate></ListView.ItemTemplate>
+        </ListView>
+        <Grid Grid.Row="5" ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBox x:Name="Folder" Header="Download folder" ToolTipService.ToolTip="Each download is saved in a new subfolder with its SHA-256 and GitHub provenance. Existing files are never overwritten. Archives are not automatically extracted or run."/>
+            <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="Browse_Click"/>
+        </Grid>
+        <StackPanel Grid.Row="6" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="Download" Content="Download selected file" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" Click="Download_Click"/>
+                <Button x:Name="CancelDownload" Content="Cancel download" IsEnabled="False" Click="CancelDownload_Click"/>
+                <Button x:Name="OpenFolder" Content="Open download folder" IsEnabled="False" Click="OpenFolder_Click"/>
+            </StackPanel>
+            <TextBlock x:Name="DownloadStatus" Text="No download running." Style="{StaticResource ExplanationStyle}"/>
+            <ProgressBar x:Name="Progress" Visibility="Collapsed"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

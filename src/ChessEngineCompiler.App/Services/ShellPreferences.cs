@@ -15,6 +15,7 @@ public sealed class ShellPreferences
     public int WindowY { get; set; } = int.MinValue;
     public int WindowWidth { get; set; }
     public int WindowHeight { get; set; }
+    public string GitHubAuthMode { get; set; } = "anonymous";
 
     [JsonIgnore]
     public string Path { get; private set; } = "";

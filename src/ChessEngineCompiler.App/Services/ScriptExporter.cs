@@ -20,6 +20,7 @@ public static class ScriptExporter
         visualStudio = o.VisualStudio,
         cudaRoot = o.CudaRoot,
         weightsPath = o.WeightsPath,
+        autoArchitecture = o.AutoArchitecture,
     }, new JsonSerializerOptions { WriteIndented = true });
 
     public static string Export(BuildOptions options, string parent, string appDirectory)

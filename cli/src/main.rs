@@ -18,6 +18,23 @@ enum Action {
     Plan { config: std::path::PathBuf },
     /// Compile and verify an engine from a JSON build configuration.
     Build { config: std::path::PathBuf },
+    /// Print this computer's compatible CPU targets and recommendation.
+    Hardware,
+    /// Browse upstream GitHub versions/downloads. Credentials never enter command arguments.
+    Github {
+        #[arg(value_parser = ["stockfish", "lc0"])]
+        engine: String,
+        #[arg(long, default_value="catalog", value_parser=["catalog","assets","artifacts","download-release","download-artifact","account"])]
+        action: String,
+        #[arg(long, default_value="anonymous", value_parser=["anonymous","cli"])]
+        auth: String,
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        #[arg(long, default_value_t = 0)]
+        id: u64,
+        #[arg(long, default_value = "")]
+        output: String,
+    },
 }
 fn main() {
     if let Err(error) = execute() {
@@ -27,6 +44,48 @@ fn main() {
 }
 fn execute() -> Result<(), Box<dyn std::error::Error>> {
     match Args::parse().command {
+        Action::Hardware => println!(
+            "{}",
+            serde_json::to_string_pretty(&compiler_core::hardware::detect())?
+        ),
+        Action::Github {
+            engine,
+            action,
+            auth,
+            page,
+            id,
+            output,
+        } => {
+            let action = match action.as_str() {
+                "assets" => 1,
+                "artifacts" => 2,
+                "download-release" => 3,
+                "download-artifact" => 4,
+                "account" => 5,
+                _ => 0,
+            };
+            let mut worker = compiler_core::github::Worker::default();
+            worker.start(compiler_core::github::Query {
+                action,
+                engine,
+                auth_mode: auth,
+                page,
+                id,
+                output_folder: output,
+                ..Default::default()
+            })?;
+            loop {
+                let result = worker.snapshot();
+                if result.state != "Running" {
+                    println!("{}", serde_json::to_string_pretty(&result)?);
+                    if result.state != "Completed" {
+                        return Err(result.message.into());
+                    }
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(150));
+            }
+        }
         Action::Doctor { engine } => println!(
             "{}",
             serde_json::to_string_pretty(&compiler_core::defaults(&engine))?

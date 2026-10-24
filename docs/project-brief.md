@@ -8,7 +8,7 @@ The GUI exports a standalone CLI and PowerShell/Windows batch scripts carrying t
 
 ## Stack and operating model
 
-WinUI 3 / C# / CommunityToolkit.Mvvm shell, Rust domain core, narrow C ABI and generated Protocol Buffer messages. Windows 11 24H2 or later, x64. A per-user Inno Setup installer is mandatory and includes .NET, Windows App SDK and MSVC runtime files, a Jupiter Start Menu entry and registered uninstaller. A portable zip is supplemental. Stable application identity supports upgrades; user settings and engine outputs survive uninstall. One active build per GUI instance; independent instances and exported CLI runs use separate job folders. No background service, account or cloud storage. Internet is required for upstream source and NNUE downloads. Compiler toolchains are detected or selected, never silently installed or updated.
+WinUI 3 / C# / CommunityToolkit.Mvvm shell, Rust domain core, narrow C ABI and generated Protocol Buffer messages. Windows 11 24H2 or later, x64. A per-user Inno Setup installer is mandatory and includes .NET, Windows App SDK and MSVC runtime files, a Jupiter Start Menu entry and registered uninstaller. A portable zip is supplemental. Stable application identity supports upgrades; user settings and engine outputs survive uninstall. One active build per GUI instance; independent instances and exported CLI runs use separate job folders. No background service or cloud build storage. GitHub authentication is optional for version metadata and binary downloads. Internet is required for upstream source and NNUE downloads. Compiler toolchains are detected or selected, never silently installed or updated.
 
 Jupiter warm-dark controls, traditional menu bar, Windows accent tracking and the compact Settings > Appearance > Accent color chooser. Logs remain selectable and copyable; output and log folders are directly accessible. Shutdown asks before cancelling a running build, waits for the worker to stop, and preserves partial source/logs.
 
@@ -35,3 +35,8 @@ The result source archive contains tracked upstream source at the resolved commi
 ## Version 0.2: Lc0
 
 Lc0 has a separate MSVC/Meson/Ninja adapter with explicit NVIDIA CUDA and CPU Eigen backends. Engine selection changes the configuration form; shared output/jobs/log controls stay in place. Stockfish selections remain independent. Lc0 defaults to v0.32.1, fetches its pinned common submodule, keeps weights separate and verifies the chosen backend with a real standalone network search. Result provenance includes network SHA-256, compiler/build-option records, dependency source archive and runtime list. See [the Lc0 workflow](lc0.md). Other backend variants are not advertised until implemented and verified.
+
+
+## Version 0.3: hardware and GitHub workflows
+
+Restore compatible CPU choices and automatic Stockfish recommendations. Present separate GitHub official-release and development source lists, plus manual refs. Add optional credential-manager token storage and GitHub CLI browser sign-in. A separate Downloads area retrieves upstream release assets or authorized workflow archives while builds continue independently. Verify published digests, preserve download provenance and never automatically run or extract downloaded binaries. Copy complete logs, colour the selectable GUI log and prefer PowerShell 7 for build process hosting when available.

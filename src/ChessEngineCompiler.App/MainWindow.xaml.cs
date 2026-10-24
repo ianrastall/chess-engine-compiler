@@ -22,20 +22,33 @@ public sealed partial class MainWindow : Window
     private string _engine = "stockfish";
     private bool _loadingOptions;
     private readonly Dictionary<string, BuildOptions> _engineOptions = new();
+    private readonly bool _verification;
+    private readonly GitHubCredentials _githubCredentials;
+    private readonly GitHubSession _sourceSession = new();
+    private Hardware _hardware = new();
     private readonly string DataFolder;
     private string ConfigPath => Path.Combine(DataFolder, "build-options.json");
     public BuildViewModel Model { get; } = new();
     public MainWindow(string? dataFolder = null)
     {
         DataFolder = dataFolder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jupiter", "ChessEngineCompiler");
+        _verification = dataFolder is not null;
         InitializeComponent();
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
         _logPresenter = new LogPresenter(LogScroll, Log, FollowOutput, LogViewStatus);
         Title = "Chess Engine Compiler";
         Directory.CreateDirectory(DataFolder);
         _preferences = ShellPreferences.Load(Path.Combine(DataFolder, "ui.json"));
+        _githubCredentials = new GitHubCredentials(DataFolder, _preferences);
         _accent = new AccentService(_preferences, DispatcherQueue);
         _accent.Attach(Root);
+        _hardware = _core.Call(Request.Types.Operation.Hardware).Hardware;
+        Architecture.Items.Clear();
+        foreach (var choice in _hardware.Choices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
+        Architecture.SelectedIndex = 0;
+        HardwareSummary.Text = _hardware.CpuName;
+        ArchitectureExplanation.Text = _hardware.Explanation;
+        DownloadPane.Initialize(_githubCredentials, _verification, WinRT.Interop.WindowNative.GetWindowHandle(this));
         var options = _core.Call(Request.Types.Operation.Defaults).Options;
         options.OutputRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Chess engine builds");
         try { if (File.Exists(ConfigPath)) options = ReadOptions(File.ReadAllText(ConfigPath)); }
@@ -49,6 +62,7 @@ public sealed partial class MainWindow : Window
         catch (Exception e) when (e is IOException or JsonException or InvalidOperationException) { ShowProblem("Saved Lc0 options could not be read. Stockfish settings have been restored."); }
         LoadOptions(options);
         Engine.SelectionChanged += Engine_Changed;
+        if (!_verification) _ = LoadSourcesAsync(1);
         _timer = DispatcherQueue.CreateTimer();
         _timer.Interval = TimeSpan.FromMilliseconds(400);
         _timer.Tick += (_, _) => Refresh();
@@ -90,6 +104,7 @@ public sealed partial class MainWindow : Window
         Engine.SelectedIndex = _engine == "lc0" ? 1 : 0;
         Model.SourceRef = options.SourceRef; Model.MsysRoot = options.MsysRoot; Model.OutputRoot = options.OutputRoot;
         Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo; Strip.IsChecked = options.Strip;
+        AutoArchitecture.IsChecked = options.AutoArchitecture;
         foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == options.Architecture) Architecture.SelectedItem = item;
         PythonPath.Text = options.PythonPath; VisualStudio.Text = options.VisualStudio;
         CudaRoot.Text = options.CudaRoot; WeightsPath.Text = options.WeightsPath;
@@ -100,6 +115,7 @@ public sealed partial class MainWindow : Window
         SourceHint.Text = _engine == "lc0" ? "Default: Lc0 v0.32.1. Network weights are selected separately below." : "Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit.";
         ToolTipService.SetToolTip(SourceRef, _engine == "lc0" ? "Select an official LeelaChessZero/lc0 release tag, branch or exact commit. The default is v0.32.1. Its pinned lczero-common submodule is fetched with it." : "Select an official Stockfish release tag, branch or exact commit. The default is sf_19; master follows development.");
         _loadingOptions = false;
+        AutoArchitecture_Changed(this, null!);
         Backend_Changed(this, null!);
     }
     private void Engine_Changed(object sender, SelectionChangedEventArgs e)
@@ -118,6 +134,12 @@ public sealed partial class MainWindow : Window
                 if (File.Exists(path)) next = ReadOptions(File.ReadAllText(path));
             }
             LoadOptions(next);
+            _loadingSources = true;
+            OfficialVersions.ItemsSource = DevelopmentVersions.ItemsSource = null;
+            SourceChannel.SelectedIndex = 2;
+            _loadingSources = false;
+            SourceChannel_Changed(this, null!);
+            if (!_verification) _ = LoadSourcesAsync(1);
             Notice.IsOpen = false;
         }
         catch (Exception error) { ShowProblem(error.Message); }
@@ -139,6 +161,7 @@ public sealed partial class MainWindow : Window
         Backend = Backend.SelectedIndex == 1 ? "eigen" : "cuda-auto",
         PythonPath = PythonPath.Text.Trim(), VisualStudio = VisualStudio.Text.Trim(),
         CudaRoot = CudaRoot.Text.Trim(), WeightsPath = WeightsPath.Text.Trim(),
+        AutoArchitecture = AutoArchitecture.IsChecked == true,
     };
     private static BuildOptions ReadOptions(string json) => Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(json);
     private void ShowProblem(string message) { Notice.Severity = InfoBarSeverity.Error; Notice.Title = "Build needs attention"; Notice.Message = message; Notice.IsOpen = true; }
@@ -188,6 +211,7 @@ public sealed partial class MainWindow : Window
             if (_active || _lastState is "Running" or "Cancelling") _logPresenter.Update(s.LogTail);
             _output = s.Output; _logPath = s.LogPath;
             ResultButton.IsEnabled = File.Exists(_output); LogButton.IsEnabled = File.Exists(_logPath);
+            PowerShellLogMenu.IsEnabled = File.Exists(_logPath);
             if (_lastState != s.State && s.State is "Completed" or "Failed" or "Cancelled")
             {
                 Notice.Severity = s.State == "Completed" ? InfoBarSeverity.Success : s.State == "Failed" ? InfoBarSeverity.Error : InfoBarSeverity.Informational;
@@ -283,13 +307,21 @@ public sealed partial class MainWindow : Window
     private async Task CloseAsync()
     {
         if (_closing) return; _closing = true;
-        if (_active)
+        if (_githubDialog is not null)
         {
-            var choice = await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Cancel the running build?", Content = "Closing will stop compilation. Its source and log will remain in the job folder.", PrimaryButtonText = "Cancel build and close", CloseButtonText = "Keep building", DefaultButton = ContentDialogButton.Close }.ShowAsync();
+            var pending = _githubDialogTask;
+            _authSession?.Cancel(); _githubDialog.Hide();
+            if (pending is not null) await pending;
+        }
+        if (_active || DownloadPane.DownloadActive)
+        {
+            var choice = await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Cancel running work?", Content = "Closing will stop the running build or download. Build sources and logs remain. Incomplete download files are removed.", PrimaryButtonText = "Cancel work and close", CloseButtonText = "Keep working", DefaultButton = ContentDialogButton.Close }.ShowAsync();
             if (choice != ContentDialogResult.Primary) { _closing = false; return; }
         }
         SaveWindowBounds();
         _timer.Stop(); AppWindow.Hide();
+        await _sourceSession.DisposeAsync();
+        await DownloadPane.DisposeAsync();
         await Task.Run(_core.Dispose);
         _allowClose = true; Close();
     }
