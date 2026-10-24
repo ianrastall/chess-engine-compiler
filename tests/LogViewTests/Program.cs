@@ -72,6 +72,8 @@ public sealed partial class TestApp : Application
 
             follow.IsChecked = true; await Settle(AtBottom);
             Require(AtBottom() && text.Text.EndsWith("003999"), "Resuming did not show the newest pending snapshot.");
+            text.Select(text.ContentStart, text.ContentEnd); await Settle();
+            Require(follow.IsChecked == false, "Selecting text without a pointer event did not pause following.");
             presenter.ShowPreview("Build preview"); await Settle();
             Require(viewport.VerticalOffset < 2 && text.Text == "Build preview", "Preview did not return to the top.");
             presenter.BeginBuild(); presenter.Update(Lines(5000)); await Settle(AtBottom);

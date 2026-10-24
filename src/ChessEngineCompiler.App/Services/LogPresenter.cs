@@ -26,6 +26,7 @@ public sealed class LogPresenter
             status.Text = "Log view paused. Select Follow output to show the latest lines.";
         };
         text.SizeChanged += (_, _) => ScrollToEnd();
+        text.SelectionChanged += (_, _) => { if (text.SelectedText.Length > 0) Pause(); };
         viewport.SizeChanged += (_, _) => ScrollToEnd();
         viewport.LayoutUpdated += (_, _) => ApplyPendingScroll();
         viewport.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => Pause()), true);
