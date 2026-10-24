@@ -15,6 +15,7 @@ use std::{
 };
 
 type Result<T> = std::result::Result<T, String>;
+mod lc0;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -27,6 +28,11 @@ pub struct BuildOptions {
     pub jobs: u32,
     pub pgo: bool,
     pub strip: bool,
+    pub backend: String,
+    pub python_path: String,
+    pub visual_studio: String,
+    pub cuda_root: String,
+    pub weights_path: String,
 }
 
 impl Default for BuildOptions {
@@ -43,7 +49,20 @@ impl Default for BuildOptions {
                 .min(16),
             pgo: true,
             strip: true,
+            backend: "eigen".into(),
+            python_path: String::new(),
+            visual_studio: String::new(),
+            cuda_root: String::new(),
+            weights_path: String::new(),
         }
+    }
+}
+
+pub fn defaults(engine: &str) -> BuildOptions {
+    if engine == "lc0" {
+        lc0::defaults()
+    } else {
+        BuildOptions::default()
     }
 }
 
@@ -99,8 +118,8 @@ fn git_executable(root: &Path) -> Option<PathBuf> {
 }
 
 pub fn plan(options: &BuildOptions) -> Result<Plan> {
-    if options.engine != "stockfish" {
-        return Err("This version builds Stockfish. Lc0 is the next planned adapter.".into());
+    if options.engine != "stockfish" && options.engine != "lc0" {
+        return Err("Select Stockfish or Lc0.".into());
     }
     if options.source_ref.is_empty()
         || options.source_ref.starts_with('-')
@@ -111,11 +130,17 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
             .all(|c| c.is_ascii_alphanumeric() || "-._/".contains(c))
     {
         return Err(
-            "Enter a Stockfish tag, branch or commit using letters, digits, /, -, _ or .".into(),
+            "Enter a source tag, branch or commit using letters, digits, /, -, _ or .".into(),
         );
     }
     if !(1..=256).contains(&options.jobs) {
         return Err("Parallel jobs must be between 1 and 256.".into());
+    }
+    if !Path::new(&options.output_root).is_absolute() {
+        return Err("Choose an absolute output folder.".into());
+    }
+    if options.engine == "lc0" {
+        return lc0::plan(options);
     }
     let compatible = match options.architecture.as_str() {
         "native" | "x86-64" => true,
@@ -242,7 +267,14 @@ impl Compiler {
                     state.snapshot.output = output;
                     (
                         "Completed",
-                        "Stockfish compiled; UCI and standalone search checks passed.".into(),
+                        format!(
+                            "{} compiled; UCI and standalone search checks passed.",
+                            if options.engine == "lc0" {
+                                "Lc0"
+                            } else {
+                                "Stockfish"
+                            }
+                        ),
                     )
                 }
                 _ if cancel.load(Ordering::SeqCst) => (
@@ -313,10 +345,20 @@ fn run(
     timeout: Duration,
     input: Option<&str>,
 ) -> Result<String> {
+    shared.lock().unwrap().line(&format!("$ {command:?}"));
+    run_unlogged(command, shared, cancel, timeout, input)
+}
+
+fn run_unlogged(
+    command: &mut Command,
+    shared: &Arc<Mutex<Shared>>,
+    cancel: &AtomicBool,
+    timeout: Duration,
+    input: Option<&str>,
+) -> Result<String> {
     if cancel.load(Ordering::SeqCst) {
         return Err("Cancelled".into());
     }
-    shared.lock().unwrap().line(&format!("$ {command:?}"));
     let mut child = hidden(command)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -432,6 +474,9 @@ fn build(
         let mut shared = shared.lock().unwrap();
         shared.log = Some(File::create(&log_path).map_err(|e| e.to_string())?);
         shared.snapshot.log_path = log_path.to_string_lossy().into_owned();
+    }
+    if options.engine == "lc0" {
+        return lc0::build(options, &job, shared, cancel);
     }
     let root = Path::new(&options.msys_root);
     let path = std::env::join_paths(

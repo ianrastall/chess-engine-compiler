@@ -23,6 +23,11 @@ impl From<messages::BuildOptions> for BuildOptions {
             jobs: o.jobs,
             pgo: o.pgo,
             strip: o.strip,
+            backend: o.backend,
+            python_path: o.python_path,
+            visual_studio: o.visual_studio,
+            cuda_root: o.cuda_root,
+            weights_path: o.weights_path,
         }
     }
 }
@@ -37,6 +42,11 @@ impl From<BuildOptions> for messages::BuildOptions {
             jobs: o.jobs,
             pgo: o.pgo,
             strip: o.strip,
+            backend: o.backend,
+            python_path: o.python_path,
+            visual_studio: o.visual_studio,
+            cuda_root: o.cuda_root,
+            weights_path: o.weights_path,
         }
     }
 }
@@ -104,7 +114,16 @@ pub unsafe extern "C" fn cec_call(
         let result = match operation {
             Ok(Status) => Ok(()),
             Ok(Defaults) => {
-                response.options = Some(BuildOptions::default().into());
+                response.options = Some(
+                    compiler_core::defaults(
+                        request
+                            .options
+                            .as_ref()
+                            .map(|o| o.engine.as_str())
+                            .unwrap_or("stockfish"),
+                    )
+                    .into(),
+                );
                 Ok(())
             }
             Ok(Cancel) => {

@@ -11,8 +11,16 @@ for (var i = 0; i < 500; i++)
 }
 defaults.SourceRef = "master;calc";
 try { core.Call(Request.Types.Operation.Start, defaults); throw new Exception("Invalid source ref was accepted."); }
-catch (InvalidOperationException e) when (e.Message.Contains("Stockfish tag")) { }
+catch (InvalidOperationException e) when (e.Message.Contains("source tag")) { }
 core.Call(Request.Types.Operation.Cancel);
+var lc0 = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "lc0" }).Options;
+if (lc0.Engine != "lc0" || lc0.SourceRef != "v0.32.1" || lc0.Pgo || lc0.Strip) throw new Exception("Wrong Lc0 defaults.");
+lc0.Backend = "unsupported"; lc0.OutputRoot = Path.GetTempPath();
+try { core.Call(Request.Types.Operation.Plan, lc0); throw new Exception("Unknown Lc0 backend was accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("Eigen")) { }
+lc0.PythonPath = @"C:\tools\python.exe"; lc0.WeightsPath = @"D:\networks\network.pb.gz";
+var roundTrip = Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(lc0));
+if (!roundTrip.Equals(lc0)) throw new Exception("Lc0 script configuration did not round-trip.");
 Console.WriteLine("Managed/native round-trip, result lifetime, validation and idle cancellation passed.");
 if (args is ["--export-smoke", var app, var parent, var config])
 {

@@ -11,6 +11,11 @@ message BuildOptions {
   uint32 jobs = 6;
   bool pgo = 7;
   bool strip = 8;
+  string backend = 9;
+  string python_path = 10;
+  string visual_studio = 11;
+  string cuda_root = 12;
+  string weights_path = 13;
 }
 message Request {
   uint64 request_id = 1;

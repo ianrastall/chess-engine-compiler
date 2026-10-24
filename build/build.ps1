@@ -44,6 +44,20 @@ try {
     if ([IO.Path]::GetFullPath($app) -ne [IO.Path]::GetFullPath((Join-Path $root 'dist/ChessEngineCompiler'))) { throw 'Unexpected publish path.' }
     if (Test-Path -LiteralPath $app) { Remove-Item -LiteralPath $app -Recurse -Force }
     Invoke-Step { dotnet publish src/ChessEngineCompiler.App -c Release --artifacts-path (Join-Path $root 'target/managed-artifacts') -o $app }
+    if (-not $SkipChecks) {
+        $uiTestReport = Join-Path $root 'target/engine-ui-test/report.txt'
+        New-Item -ItemType Directory -Path (Split-Path $uiTestReport -Parent) -Force | Out-Null
+        if (Test-Path -LiteralPath $uiTestReport) { Remove-Item -LiteralPath $uiTestReport }
+        $uiTest = Start-Process -FilePath (Join-Path $app 'ChessEngineCompiler.exe') -ArgumentList ('--verify-ui "' + $uiTestReport + '"') -PassThru -WindowStyle Hidden
+        $uiHandle = $uiTest.Handle
+        if (-not $uiTest.WaitForExit(45000)) { $uiTest.Kill(); throw 'WinUI engine form verification timed out.' }
+        $uiTest.Refresh()
+        if ($uiTest.ExitCode -ne 0) { throw "WinUI engine form verification exited with $($uiTest.ExitCode)." }
+        if (-not (Test-Path -LiteralPath $uiTestReport)) { throw 'WinUI engine form verification produced no report.' }
+        $uiReport = Get-Content -Raw -LiteralPath $uiTestReport
+        if (-not $uiReport.StartsWith('PASS:')) { throw $uiReport }
+        Write-Host $uiReport
+    }
     Copy-Item -LiteralPath (Join-Path $root 'target/x86_64-pc-windows-msvc/release/chess-engine-compiler.exe') -Destination $app -Force
     $scripts = Join-Path $app 'scripts'
     New-Item -ItemType Directory -Path $scripts -Force | Out-Null

@@ -18,7 +18,7 @@ Jupiter warm-dark controls, traditional menu bar, Windows accent tracking and th
 2. **Lc0:** implement a separate adapter with dependency/backend detection and explicit CPU, CUDA and DirectML support as upstream permits. Network weights and runtime libraries must be identified independently from the compiled engine. Validate each backend on suitable hardware before advertising it.
 3. **Other engines:** add candidates when their source licenses, documented build systems, Windows support and repeatable verification justify an adapter. Do not expose placeholder engines as working options.
 
-## Boundaries of version 0.1
+## Original version 0.1 boundaries
 
 Stockfish only. GCC via MSYS2 UCRT64 only; Clang and MSVC builds are not exposed. Upstream native CPU detection plus baseline x86-64, AVX2 and BMI2 presets; explicit presets must run on this CPU so PGO and UCI verification can execute safely. Default source is the verified `sf_19` tag, not a moving latest-release alias. Master or arbitrary reachable commits are opt-in. No tournament runner, chess GUI, engine editing, automatic tool installation or build queue in this release.
 
@@ -31,3 +31,7 @@ The result source archive contains tracked upstream source at the resolved commi
 - [Stockfish releases](https://github.com/official-stockfish/Stockfish/releases)
 - [Lc0 build documentation and backend options](https://github.com/LeelaChessZero/lc0)
 - [Jupiter stack](../../_standards/stack-reference_winui3-rust-core.md) and [interface conventions](../../_standards/jupiter-style-and-interface_draft.md)
+
+## Version 0.2: Lc0
+
+Lc0 has a separate MSVC/Meson/Ninja adapter with explicit NVIDIA CUDA and CPU Eigen backends. Engine selection changes the configuration form; shared output/jobs/log controls stay in place. Stockfish selections remain independent. Lc0 defaults to v0.32.1, fetches its pinned common submodule, keeps weights separate and verifies the chosen backend with a real standalone network search. Result provenance includes network SHA-256, compiler/build-option records, dependency source archive and runtime list. See [the Lc0 workflow](lc0.md). Other backend variants are not advertised until implemented and verified.

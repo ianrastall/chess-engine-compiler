@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use compiler_core::{BuildOptions, Compiler};
+use compiler_core::Compiler;
 
 #[derive(Parser)]
 #[command(version, about = "Compile chess engines using the Jupiter build core")]
@@ -10,7 +10,10 @@ struct Args {
 #[derive(Subcommand)]
 enum Action {
     /// Print detected MSYS2 UCRT64 tools and default options.
-    Doctor,
+    Doctor {
+        #[arg(long, default_value = "stockfish", value_parser = ["stockfish", "lc0"])]
+        engine: String,
+    },
     /// Validate a JSON build configuration and print its steps.
     Plan { config: std::path::PathBuf },
     /// Compile and verify an engine from a JSON build configuration.
@@ -24,9 +27,9 @@ fn main() {
 }
 fn execute() -> Result<(), Box<dyn std::error::Error>> {
     match Args::parse().command {
-        Action::Doctor => println!(
+        Action::Doctor { engine } => println!(
             "{}",
-            serde_json::to_string_pretty(&BuildOptions::default())?
+            serde_json::to_string_pretty(&compiler_core::defaults(&engine))?
         ),
         Action::Plan { config } => {
             let options = serde_json::from_slice(&std::fs::read(config)?)?;

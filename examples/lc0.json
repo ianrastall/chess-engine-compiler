@@ -1,0 +1,13 @@
+{
+  "engine": "lc0",
+  "sourceRef": "v0.32.1",
+  "outputRoot": "D:\\Chess engine builds",
+  "jobs": 2,
+  "backend": "eigen",
+  "pythonPath": "C:\\tools\\lc0-build\\Scripts\\python.exe",
+  "visualStudio": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools",
+  "cudaRoot": "",
+  "weightsPath": "D:\\Networks\\network.pb.gz",
+  "pgo": false,
+  "strip": false
+}
