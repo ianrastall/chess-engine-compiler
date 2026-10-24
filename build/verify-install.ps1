@@ -5,7 +5,7 @@ $version = ([xml](Get-Content -LiteralPath (Join-Path $root 'Directory.Build.pro
 if (-not $Installer) { $Installer = Join-Path $root "dist/ChessEngineCompiler-$version-win-x64-setup.exe" }
 $registration = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Jupiter.ChessEngineCompiler_is1'
 $app = Join-Path $env:LOCALAPPDATA 'Programs/Jupiter/ChessEngineCompiler'
-$shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) 'Jupiter/Chess Engine Compiler.lnk'
+$shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) 'Chess Engine Compiler.lnk'
 $data = Join-Path $env:LOCALAPPDATA 'Jupiter/ChessEngineCompiler'
 if ((Test-Path -LiteralPath $app) -or (Test-Path -LiteralPath $registration) -or (Test-Path -LiteralPath $shortcut)) {
     throw 'Installation verification requires no pre-existing Chess Engine Compiler installation. Run the installer normally to upgrade an existing app.'

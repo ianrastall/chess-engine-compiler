@@ -33,8 +33,13 @@ ChangesAssociations=yes
 [Files]
 Source: "..\dist\ChessEngineCompiler\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
 
+[InstallDelete]
+; Versions before 24 October 2026 put the shortcut in a Jupiter folder; Start now lists the app by name.
+Type: files; Name: "{autoprograms}\Jupiter\Chess Engine Compiler.lnk"
+Type: dirifempty; Name: "{autoprograms}\Jupiter"
+
 [Icons]
-Name: "{autoprograms}\Jupiter\Chess Engine Compiler"; Filename: "{app}\ChessEngineCompiler.exe"; WorkingDir: "{app}"; IconFilename: "{app}\Assets\app.ico"; AppUserModelID: "Jupiter.ChessEngineCompiler"
+Name: "{autoprograms}\Chess Engine Compiler"; Filename: "{app}\ChessEngineCompiler.exe"; WorkingDir: "{app}"; IconFilename: "{app}\Assets\app.ico"; AppUserModelID: "Jupiter.ChessEngineCompiler"
 
 [Run]
 Filename: "{app}\ChessEngineCompiler.exe"; Description: "Open Chess Engine Compiler"; Flags: nowait postinstall skipifsilent
