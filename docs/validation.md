@@ -12,3 +12,13 @@ Host: Windows 11 x64, .NET SDK 10.0.113, Rust 1.99.1, MSYS2 UCRT64 GCC 16.1.0, G
 - `build/build.ps1` produced the self-contained WinUI folder and portable zip, including the Rust DLL/CLI, compiled XAML resources, scripts, .NET/Windows App SDK files and MSVC redistributable DLLs.
 
 Limits: no Lc0/backend build, Clang/MSVC engine build, older Windows version, ARM device, clean-machine install, comprehensive accessibility audit or mixed-monitor DPI test is claimed. The app supports one build per instance; it does not attach to builds started by exported scripts. This is the first portable release.
+
+## Version 0.1.1 — installer and Jupiter audit
+
+The normal build now produces an Inno Setup per-user installer, supplemental portable zip and SHA-256 checksums. Inno Setup is a required build prerequisite. Full formatting, Clippy, Rust and managed/native checks passed again; WinUI Release compilation reported zero warnings/errors. Engine build logic was unchanged from the real Stockfish builds above.
+
+`build/verify-install.ps1` passed initial installation, repeated-install upgrade, registered uninstallation and final reinstallation on Ian's Windows account. It verified installed files, version, Start Menu shortcut target and uninstall registration. SHA-256 checks of existing `ui.json` and `build-options.json` were unchanged after install, upgrade and uninstall. The installed CLI successfully detected MSYS2. `Get-StartApps -Name 'Chess Engine Compiler'` returned `Jupiter.ChessEngineCompiler`.
+
+The [structure/style audit](jupiter-conformance.md) and HANDOFF.md record the canonical stack, message/lifetime boundaries, semantic resources, accent controls, layout, installation and remaining platform checks. This release adds persisted/clamped window bounds and a matching installer/taskbar application identity. Installer lifecycle tests are also part of Windows CI. The local installer is unsigned; no clean-machine runtime/trust or comprehensive accessibility claim is added.
+
+Launching the actual Start Menu `.lnk` opened the executable under `%LOCALAPPDATA%/Programs/Jupiter/ChessEngineCompiler`, rather than the development or portable directory. Computer-use inspection confirmed the installed interface at 200% display scaling and a successful build preview through its bundled Rust core. Closing the idle app saved its window bounds.

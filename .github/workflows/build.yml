@@ -22,7 +22,13 @@ jobs:
       - name: Check and publish
         shell: pwsh
         run: ./build/build.ps1
+      - name: Verify installer lifecycle and Start Menu registration
+        shell: pwsh
+        run: ./build/verify-install.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: ChessEngineCompiler-win-x64
-          path: dist/*.zip
+          path: |
+            dist/*-setup.exe
+            dist/*.zip
+            dist/SHA256SUMS.txt

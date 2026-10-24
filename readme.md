@@ -4,9 +4,11 @@ Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.1 s
 
 Select an official Stockfish tag, branch or commit, choose build options and compile. The GUI shows the current phase and live output, can cancel compilation, and saves the executable, exact source commit, compiler version, settings, source archive and full log. Export build scripts creates PowerShell and batch entry points with a standalone CLI and the selected configuration.
 
-## Run
+## Install and run
 
-Extract the portable release and open `ChessEngineCompiler.exe`. Keep all files in the extracted folder. .NET and Windows App SDK runtimes are included.
+Run the `ChessEngineCompiler-<version>-win-x64-setup.exe` release installer. It installs for your Windows account without an administrator prompt. Open **Start > Jupiter > Chess Engine Compiler**, or search Start for **Chess Engine Compiler**. .NET, Windows App SDK and MSVC runtimes are included. Uninstall through Windows Settings > Apps > Installed apps. Running a newer installer upgrades the same application; settings and engine-build outputs are preserved on upgrade and uninstall. Close the app before upgrading.
+
+A portable zip is supplied as an additional option. Extract it and keep its files together. The installer is the standard Jupiter delivery route.
 
 Install [MSYS2](https://www.msys2.org/) separately. In its UCRT64 terminal, update with `pacman -Syu` (restart/repeat when prompted), then install:
 
@@ -36,6 +38,6 @@ Pinned .NET 10 SDK, Rust 1.99.1, Windows SDK and MSVC x64 build tools are requir
 pwsh -File build/build.ps1
 ```
 
-This runs formatting, Clippy, domain/ABI tests and managed/native integration checks, then publishes `dist/ChessEngineCompiler/` and a portable zip. See [the brief](docs/project-brief.md), [architecture](docs/architecture.md) and [validation record](docs/validation.md).
+This runs formatting, Clippy, domain/ABI tests and managed/native integration checks, then publishes the required installer, a supplemental portable zip and SHA-256 checksums under `dist/`. Inno Setup 6 is required; packaging fails if it is missing. Use `-InnoCompiler <path-to-ISCC.exe>` for a custom installation. See [the brief](docs/project-brief.md), [architecture](docs/architecture.md), [Jupiter audit](docs/jupiter-conformance.md), [handoff](HANDOFF.md) and [validation record](docs/validation.md).
 
 The application is MIT licensed. Stockfish and NNUE networks retain upstream licenses. Engine outputs and toolchains are not bundled with the app. This is a new repository; the former StockfishCompiler repository remains intact.

@@ -8,7 +8,7 @@ The GUI exports a standalone CLI and PowerShell/Windows batch scripts carrying t
 
 ## Stack and operating model
 
-WinUI 3 / C# / CommunityToolkit.Mvvm shell, Rust domain core, narrow C ABI and generated Protocol Buffer messages. Windows 11 24H2 or later, x64. Self-contained .NET and Windows App SDK portable folder. One active build per GUI instance; independent instances and exported CLI runs use separate job folders. No background service, account or cloud storage. Internet is required for upstream source and NNUE downloads. Compiler toolchains are detected or selected, never silently installed or updated.
+WinUI 3 / C# / CommunityToolkit.Mvvm shell, Rust domain core, narrow C ABI and generated Protocol Buffer messages. Windows 11 24H2 or later, x64. A per-user Inno Setup installer is mandatory and includes .NET, Windows App SDK and MSVC runtime files, a Jupiter Start Menu entry and registered uninstaller. A portable zip is supplemental. Stable application identity supports upgrades; user settings and engine outputs survive uninstall. One active build per GUI instance; independent instances and exported CLI runs use separate job folders. No background service, account or cloud storage. Internet is required for upstream source and NNUE downloads. Compiler toolchains are detected or selected, never silently installed or updated.
 
 Jupiter warm-dark controls, traditional menu bar, Windows accent tracking and the compact Settings > Appearance > Accent color chooser. Logs remain selectable and copyable; output and log folders are directly accessible. Shutdown asks before cancelling a running build, waits for the worker to stop, and preserves partial source/logs.
 

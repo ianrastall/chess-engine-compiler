@@ -15,6 +15,7 @@ public sealed partial class MainWindow : Window
     private readonly CompilerCore _core = new();
     private readonly DispatcherQueueTimer _timer;
     private readonly AccentService _accent;
+    private readonly ShellPreferences _preferences;
     private bool _active, _closing, _allowClose;
     private string _output = "", _logPath = "", _lastState = "Ready";
     private static readonly string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jupiter", "ChessEngineCompiler");
@@ -25,7 +26,8 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Title = "Chess Engine Compiler";
         Directory.CreateDirectory(DataFolder);
-        _accent = new AccentService(ShellPreferences.Load(Path.Combine(DataFolder, "ui.json")), DispatcherQueue);
+        _preferences = ShellPreferences.Load(Path.Combine(DataFolder, "ui.json"));
+        _accent = new AccentService(_preferences, DispatcherQueue);
         _accent.Attach(Root);
         var options = _core.Call(Request.Types.Operation.Defaults).Options;
         options.OutputRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Chess engine builds");
@@ -41,15 +43,30 @@ public sealed partial class MainWindow : Window
     public void ConfigureWindow()
     {
         var scale = WindowDpi.GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
-        var area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Primary).WorkArea;
+        var savedBounds = new Windows.Graphics.RectInt32(_preferences.WindowX, _preferences.WindowY, _preferences.WindowWidth, _preferences.WindowHeight);
+        var monitor = _preferences.WindowX != int.MinValue && savedBounds.Width > 0 && savedBounds.Height > 0
+            ? Microsoft.UI.Windowing.DisplayArea.GetFromRect(savedBounds, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest)
+            : Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
+        var area = monitor.WorkArea;
         if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
             presenter.PreferredMinimumWidth = Math.Min((int)(1050 * scale), area.Width);
             presenter.PreferredMinimumHeight = Math.Min((int)(650 * scale), area.Height);
         }
-        var width = Math.Min((int)(1200 * scale), area.Width);
-        var height = Math.Min((int)(900 * scale), area.Height);
-        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(area.X + (area.Width - width) / 2, area.Y + (area.Height - height) / 2, width, height));
+        var width = Math.Min(Math.Max(_preferences.WindowWidth > 0 ? _preferences.WindowWidth : (int)(1200 * scale), (int)(1050 * scale)), area.Width);
+        var height = Math.Min(Math.Max(_preferences.WindowHeight > 0 ? _preferences.WindowHeight : (int)(900 * scale), (int)(650 * scale)), area.Height);
+        var x = _preferences.WindowX == int.MinValue ? area.X + (area.Width - width) / 2 : Math.Clamp(_preferences.WindowX, area.X, area.X + area.Width - width);
+        var y = _preferences.WindowY == int.MinValue ? area.Y + (area.Height - height) / 2 : Math.Clamp(_preferences.WindowY, area.Y, area.Y + area.Height - height);
+        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, width, height));
+    }
+    private void SaveWindowBounds()
+    {
+        if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Restored })
+        {
+            _preferences.WindowX = AppWindow.Position.X; _preferences.WindowY = AppWindow.Position.Y;
+            _preferences.WindowWidth = AppWindow.Size.Width; _preferences.WindowHeight = AppWindow.Size.Height;
+            _preferences.Save();
+        }
     }
     private void LoadOptions(BuildOptions options)
     {
@@ -175,7 +192,7 @@ public sealed partial class MainWindow : Window
         XamlRoot = Root.XamlRoot,
         Title = "Chess Engine Compiler",
         CloseButtonText = "Close",
-        Content = "Jupiter · Chess Engine Compiler\nVersion 0.1.0 · Windows 11 x64\nMIT license\n\nStockfish is the first supported engine. Lc0 is next.\nStockfish and its networks retain their upstream licenses."
+        Content = $"Jupiter · Chess Engine Compiler\nVersion {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)} · Windows 11 x64\nMIT license\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish is the first supported engine. Lc0 is next.\nStockfish and its networks retain their upstream licenses."
     }.ShowAsync();
     private async void Exit_Click(object sender, RoutedEventArgs e) => await CloseAsync();
     private async Task CloseAsync()
@@ -186,6 +203,7 @@ public sealed partial class MainWindow : Window
             var choice = await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Cancel the running build?", Content = "Closing will stop compilation. Its source and log will remain in the job folder.", PrimaryButtonText = "Cancel build and close", CloseButtonText = "Keep building", DefaultButton = ContentDialogButton.Close }.ShowAsync();
             if (choice != ContentDialogResult.Primary) { _closing = false; return; }
         }
+        SaveWindowBounds();
         _timer.Stop(); AppWindow.Hide();
         await Task.Run(_core.Dispose);
         _allowClose = true; Close();
