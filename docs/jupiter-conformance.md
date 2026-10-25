@@ -1,6 +1,6 @@
 # Jupiter structure and style audit — 24 October 2026, updated for style standard 1.0
 
-References: workspace AGENTS.md, jupiter-plan.md, canonical WinUI/Rust stack, [Jupiter style standard 1.0](../../_standards/jupiter-style-standard_v1-0.md) and UI package proposal. The app uses the shared [Jupiter.UI](../../jupiter-ui/readme.md) library for every color, text style, spacing value, control style and the accent control; its style check runs on every build with no violations. Departures are in [jupiter-exceptions.md](jupiter-exceptions.md).
+References: workspace AGENTS.md, jupiter-plan.md, canonical WinUI/Rust stack, [Jupiter style standard 1.0](../../_standards/jupiter-style-standard.md) and UI package proposal. The app uses the shared [Jupiter.UI](../../jupiter-ui/readme.md) library for every color, text style, spacing value, control style and the accent control; its style check runs on every build with no violations. Departures are in [jupiter-exceptions.md](jupiter-exceptions.md).
 
 | Requirement | Implementation |
 | --- | --- |

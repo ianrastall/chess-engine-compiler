@@ -30,7 +30,7 @@ The result source archive contains tracked upstream source at the resolved commi
 - [Stockfish Makefile](https://github.com/official-stockfish/Stockfish/blob/master/src/Makefile)
 - [Stockfish releases](https://github.com/official-stockfish/Stockfish/releases)
 - [Lc0 build documentation and backend options](https://github.com/LeelaChessZero/lc0)
-- [Jupiter stack](../../_standards/stack-reference_winui3-rust-core.md) and [Jupiter style standard 1.0](../../_standards/jupiter-style-standard_v1-0.md)
+- [Jupiter stack](../../_standards/stack-reference_winui3-rust-core.md) and [Jupiter style standard 1.0](../../_standards/jupiter-style-standard.md)
 
 ## Version 0.2: Lc0
 
