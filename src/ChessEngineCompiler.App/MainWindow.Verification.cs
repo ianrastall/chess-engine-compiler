@@ -44,6 +44,22 @@ public sealed partial class MainWindow
         Require(Options().Equals(lc0), "Switching engines lost Lc0 selections.");
         Backend.SelectedIndex = 0;
         Require(CudaRoot.Visibility == Visibility.Visible, "CUDA selection did not show its toolkit setting.");
+        lc0 = Options();
+        Engine.SelectedIndex = 2;
+        Require(_engine == "berserk" && StockfishOptions.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed && Jobs.Visibility == Visibility.Collapsed, "Berserk did not select its own controls.");
+        Require(Model.SourceRef == "14" && CompileButton.Content.ToString() == "Compile Berserk", "Berserk source or action is wrong.");
+        Require(Architecture.Items.Cast<Microsoft.UI.Xaml.Controls.ComboBoxItem>().Select(i => (string)i.Content).SequenceEqual(_hardware.BerserkChoices), "Berserk did not offer its own CPU targets.");
+        Require(Options().Architecture == _hardware.BerserkRecommended && !Architecture.IsEnabled && Pgo.IsChecked == false, "Berserk did not default to its automatic recommendation without PGO.");
+        AutoArchitecture.IsChecked = false; Architecture.SelectedIndex = 1; Pgo.IsChecked = true;
+        var berserk = Options();
+        Require(berserk.Architecture == "x86-64", "Manual Berserk target was not selected.");
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "berserk.png"));
+        Engine.SelectedIndex = 0;
+        Require(Options().Equals(stockfish) && Jobs.Visibility == Visibility.Visible, "Switching from Berserk changed Stockfish selections.");
+        Engine.SelectedIndex = 2;
+        Require(Options().Equals(berserk), "Switching engines lost Berserk selections.");
+        Engine.SelectedIndex = 1;
+        Require(Options().Equals(lc0), "Switching from Berserk changed Lc0 selections.");
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);
@@ -65,7 +81,7 @@ public sealed partial class MainWindow
         Require(SettingsPage.Visibility == Visibility.Visible && AccentSetting.Service is not null, "Settings page or its shared accent control is not connected.");
         Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "settings.png"));
-        File.WriteAllText(report, "PASS: real WinUI engine switching, separate option retention, automatic/manual architecture, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0 and Berserk, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

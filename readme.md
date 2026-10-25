@@ -1,6 +1,6 @@
 # Chess Engine Compiler
 
-Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.3 supports Stockfish and Lc0, GitHub version browsing and separate binary downloads.
+Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.4 supports Stockfish, Lc0 and Berserk, GitHub version browsing and separate binary downloads.
 
 Select an official Stockfish tag, branch or commit, choose build options and compile. The GUI shows the current phase and live output, can cancel compilation, and saves the executable, exact source commit, compiler version, settings, source archive and full log. Export build scripts creates PowerShell and batch entry points with a standalone CLI and the selected configuration.
 
@@ -28,15 +28,19 @@ Each build creates a new job folder below the selected output folder. **Open res
 
 Select **Lc0** to show its backend, Python/Meson, Visual Studio, CUDA and network controls. Stockfish and Lc0 retain separate settings. Supported Lc0 backends are NVIDIA CUDA and CPU Eigen. Each result includes the selected network and any required CUDA runtime DLLs, and must pass a real standalone neural-network search. See [Lc0 tools, networks and build instructions](docs/lc0.md). The app does not install compiler tools.
 
+## Berserk
+
+Select **Berserk** to compile [Berserk](https://github.com/jhonnold/berserk) with the same MSYS2 UCRT64 GCC toolchain as Stockfish; also install `wget` in MSYS2. The default source is release tag `14`. The build downloads the network named by that source, checks its SHA-256 and embeds it in a single static `berserk.exe`, which must pass UCI and a standalone search with no MSYS2 directories on PATH. Berserk offers its own CPU target names. PGO is off by default because it measured no faster with GCC. See [Berserk build details](docs/berserk.md).
+
 ## Versions, architecture and GitHub
 
 The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
 
-Stockfish detects this CPU and offers only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
+Stockfish and Berserk detect this CPU and offer only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
 
 **Settings > GitHub > Manage GitHub access** supports anonymous access, a masked personal access token saved in Windows Credential Manager, or an existing GitHub CLI account. **Sign in through browser** uses GitHub CLI's device-code flow. Tokens never enter build JSON, exported scripts or logs. Authentication raises API limits and enables authorized workflow downloads. See [GitHub access and downloads](docs/github.md).
 
-The separate **Downloads** work area lists release assets and authenticated workflow artifacts for either engine. Downloads can run alongside compilation. Each download gets a new folder and SHA-256/provenance record; published digests are verified when provided. Archives are not automatically extracted or executed. Expired artifacts are unavailable.
+The separate **Downloads** work area lists release assets and authenticated workflow artifacts for each engine. Downloads can run alongside compilation. Each download gets a new folder and SHA-256/provenance record; published digests are verified when provided. Archives are not automatically extracted or executed. Expired artifacts are unavailable.
 
 **Copy log** copies the full saved log or the current preview. Command strings, warnings and errors are highlighted in the selectable GUI log. Build tools prefer PowerShell 7 when installed, with direct execution as the fallback; interactive UCI input stays direct. **View > Watch log in PowerShell** opens a separate colour-coded live viewer. PowerShell is not required by the installer.
 
@@ -48,7 +52,7 @@ The separate **Downloads** work area lists release assets and authenticated work
 .\chess-engine-compiler.exe build .\stockfish.json
 ```
 
-Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [example configuration](examples/stockfish.json) documents editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts.
+Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [Stockfish](examples/stockfish.json), [Lc0](examples/lc0.json) and [Berserk](examples/berserk.json) example configurations document editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts.
 
 ## Develop
 

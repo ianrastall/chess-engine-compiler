@@ -30,6 +30,9 @@ message Hardware {
   string recommended = 2;
   string explanation = 3;
   repeated string choices = 4;
+  string berserk_recommended = 5;
+  string berserk_explanation = 6;
+  repeated string berserk_choices = 7;
 }
 message GitHubQuery {
   enum Action { CATALOG = 0; RELEASE_ASSETS = 1; ARTIFACTS = 2; DOWNLOAD_RELEASE = 3; DOWNLOAD_ARTIFACT = 4; ACCOUNT = 5; SIGN_IN = 6; }

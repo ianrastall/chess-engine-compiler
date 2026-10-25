@@ -15,6 +15,7 @@ use std::{
 };
 
 type Result<T> = std::result::Result<T, String>;
+mod berserk;
 pub mod github;
 pub mod hardware;
 mod lc0;
@@ -63,14 +64,22 @@ impl Default for BuildOptions {
 }
 
 pub fn defaults(engine: &str) -> BuildOptions {
-    if engine == "lc0" {
-        lc0::defaults()
-    } else {
-        BuildOptions {
+    match engine {
+        "lc0" => lc0::defaults(),
+        "berserk" => berserk::defaults(),
+        _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
             ..BuildOptions::default()
-        }
+        },
+    }
+}
+
+fn engine_name(engine: &str) -> &'static str {
+    match engine {
+        "lc0" => "Lc0",
+        "berserk" => "Berserk",
+        _ => "Stockfish",
     }
 }
 
@@ -127,12 +136,16 @@ fn git_executable(root: &Path) -> Option<PathBuf> {
 
 pub fn plan(options: &BuildOptions) -> Result<Plan> {
     let mut resolved = options.clone();
-    if resolved.engine == "stockfish" && resolved.auto_architecture {
-        resolved.architecture = hardware::detect().recommended;
+    if resolved.auto_architecture {
+        match resolved.engine.as_str() {
+            "stockfish" => resolved.architecture = hardware::detect().recommended,
+            "berserk" => resolved.architecture = hardware::detect().berserk_recommended,
+            _ => {}
+        }
     }
     let options = &resolved;
-    if options.engine != "stockfish" && options.engine != "lc0" {
-        return Err("Select Stockfish or Lc0.".into());
+    if !matches!(options.engine.as_str(), "stockfish" | "lc0" | "berserk") {
+        return Err("Select Stockfish, Lc0 or Berserk.".into());
     }
     if options.source_ref.is_empty()
         || options.source_ref.starts_with('-')
@@ -154,6 +167,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     }
     if options.engine == "lc0" {
         return lc0::plan(options);
+    }
+    if options.engine == "berserk" {
+        return berserk::plan(options);
     }
     let compatible = hardware::detect().choices.contains(&options.architecture);
     if !compatible {
@@ -276,11 +292,7 @@ impl Compiler {
                         "Completed",
                         format!(
                             "{} compiled; UCI and standalone search checks passed.",
-                            if options.engine == "lc0" {
-                                "Lc0"
-                            } else {
-                                "Stockfish"
-                            }
+                            engine_name(&options.engine)
                         ),
                     )
                 }
@@ -539,6 +551,9 @@ fn build(
     if options.engine == "lc0" {
         return lc0::build(options, &job, shared, cancel);
     }
+    if options.engine == "berserk" {
+        return berserk::build(options, &job, shared, cancel);
+    }
     let root = Path::new(&options.msys_root);
     let path = std::env::join_paths(
         [root.join("ucrt64/bin"), root.join("usr/bin")]
@@ -744,6 +759,8 @@ mod tests {
         assert!(plan(&options).is_err());
         options.jobs = 2;
         options.engine = "lc0".into();
+        assert!(plan(&options).is_err());
+        options.engine = "crafty".into();
         assert!(plan(&options).is_err());
         options.engine = "stockfish".into();
         options.output_root = "relative".into();

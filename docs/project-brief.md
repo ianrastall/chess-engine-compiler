@@ -30,6 +30,7 @@ The result source archive contains tracked upstream source at the resolved commi
 - [Stockfish Makefile](https://github.com/official-stockfish/Stockfish/blob/master/src/Makefile)
 - [Stockfish releases](https://github.com/official-stockfish/Stockfish/releases)
 - [Lc0 build documentation and backend options](https://github.com/LeelaChessZero/lc0)
+- [Berserk makefile](https://github.com/jhonnold/berserk/blob/main/src/makefile) and [networks](https://github.com/jhonnold/berserk-networks/releases)
 - [Jupiter stack](../../_standards/stack-reference_winui3-rust-core.md) and [Jupiter style standard 1.0](../../_standards/jupiter-style-standard.md)
 
 ## Version 0.2: Lc0
@@ -40,3 +41,7 @@ Lc0 has a separate MSVC/Meson/Ninja adapter with explicit NVIDIA CUDA and CPU Ei
 ## Version 0.3: hardware and GitHub workflows
 
 Restore compatible CPU choices and automatic Stockfish recommendations. Present separate GitHub official-release and development source lists, plus manual refs. Add optional credential-manager token storage and GitHub CLI browser sign-in. A separate Downloads area retrieves upstream release assets or authorized workflow archives while builds continue independently. Verify published digests, preserve download provenance and never automatically run or extract downloaded binaries. Copy complete logs, colour the selectable GUI log and prefer PowerShell 7 for build process hosting when available.
+
+## Version 0.4: Berserk
+
+Requested by Ian on 24 October 2026 as the next useful engine. Berserk (GPL-3.0, C, makefile build) meets the "other engines" criteria: documented build, Windows support and repeatable `bench` verification. It reuses the MSYS2 UCRT64 GCC toolchain and Stockfish's form controls with Berserk's own CPU target names; parallel jobs are hidden because upstream compiles in one invocation. Its upstream network is downloaded, hash-checked against its file name and embedded; the static executable must pass UCI and a standalone search with a clean PATH. Clang is not exposed. See [the Berserk workflow](berserk.md).

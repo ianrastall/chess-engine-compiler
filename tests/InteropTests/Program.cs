@@ -23,6 +23,14 @@ var roundTrip = Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.C
 if (!roundTrip.Equals(lc0)) throw new Exception("Lc0 script configuration did not round-trip.");
 var hardware = core.Call(Request.Types.Operation.Hardware).Hardware;
 if (!hardware.Choices.Contains(hardware.Recommended)) throw new Exception("Unsupported architecture recommendation.");
+if (!hardware.BerserkChoices.Contains(hardware.BerserkRecommended)) throw new Exception("Unsupported Berserk architecture recommendation.");
+var berserk = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "berserk" }).Options;
+if (berserk.Engine != "berserk" || berserk.SourceRef != "14" || berserk.Pgo || !berserk.Strip || !berserk.AutoArchitecture || berserk.Architecture != hardware.BerserkRecommended) throw new Exception("Wrong Berserk defaults.");
+berserk.OutputRoot = Path.GetTempPath(); berserk.AutoArchitecture = false; berserk.Architecture = "x86-64-avx2";
+try { core.Call(Request.Types.Operation.Plan, berserk); throw new Exception("A Stockfish target was accepted for Berserk."); }
+catch (InvalidOperationException e) when (e.Message.Contains("Berserk target")) { }
+var berserkRoundTrip = Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(berserk));
+if (!berserkRoundTrip.Equals(berserk)) throw new Exception("Berserk script configuration did not round-trip.");
 core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
 var networkDeadline = DateTime.UtcNow.AddSeconds(5);
 GitHubSnapshot network;

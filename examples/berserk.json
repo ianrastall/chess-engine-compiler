@@ -1,0 +1,10 @@
+{
+  "engine": "berserk",
+  "sourceRef": "14",
+  "msysRoot": "C:\\msys64",
+  "outputRoot": "C:\\Users\\YourName\\Documents\\Chess engine builds",
+  "architecture": "native",
+  "jobs": 1,
+  "pgo": false,
+  "strip": true
+}

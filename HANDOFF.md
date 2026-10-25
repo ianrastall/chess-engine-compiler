@@ -1,6 +1,6 @@
 # Chess Engine Compiler handoff
 
-Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.3.1. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
+Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.4.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
 
 ## Build and verify
 
@@ -22,7 +22,7 @@ UI/accent/window preferences and recent build selections: `%LOCALAPPDATA%/Jupite
 
 ## Validation and limits
 
-See [validation](docs/validation.md) and [Jupiter conformance](docs/jupiter-conformance.md) for the evidence and outstanding platform checks. Stockfish regular and PGO builds are verified. Lc0 supports MSVC/Meson/Ninja with CUDA or CPU Eigen; see docs/lc0.md for tools, network handling and backend limits. Stockfish uses MSYS2 UCRT64 GCC. Clean-machine runtime/signing trust, ARM, comprehensive accessibility and mixed-monitor DPI are not claimed as tested. Ian owns package/runtime servicing and republishing self-contained releases.
+See [validation](docs/validation.md) and [Jupiter conformance](docs/jupiter-conformance.md) for the evidence and outstanding platform checks. Stockfish regular and PGO builds are verified. Lc0 supports MSVC/Meson/Ninja with CUDA or CPU Eigen; see docs/lc0.md for tools, network handling and backend limits. Stockfish uses MSYS2 UCRT64 GCC. Berserk (`core/domain/src/berserk.rs`) uses the same GCC toolchain with its own CPU target names, a hash-checked embedded network, a forced static runtime and its own PGO steps because upstream's `pgo` target loses GCC profiles on Windows; see docs/berserk.md. Clean-machine runtime/signing trust, ARM, comprehensive accessibility and mixed-monitor DPI are not claimed as tested. Ian owns package/runtime servicing and republishing self-contained releases.
 
 The real application also supports `--verify-ui <report-path>` for isolated offscreen engine-form verification and layout captures. It uses a separate state directory beside the report and never starts an engine build or changes normal user preferences. The default build runs this check on the published WinUI application.
 

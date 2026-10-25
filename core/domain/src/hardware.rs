@@ -6,6 +6,9 @@ pub struct Hardware {
     pub recommended: String,
     pub explanation: String,
     pub choices: Vec<String>,
+    pub berserk_recommended: String,
+    pub berserk_explanation: String,
+    pub berserk_choices: Vec<String>,
 }
 
 pub fn detect() -> Hardware {
@@ -71,6 +74,8 @@ pub fn detect() -> Hardware {
             && std::is_x86_feature_detected!("avx512vl"),
     );
     let recommended = recommend(&choices, slow_bmi2);
+    let berserk_choices = berserk_targets(&choices);
+    let berserk_recommended = berserk_recommend(&berserk_choices, slow_bmi2);
     Hardware {
         cpu_name: String::from_utf8_lossy(&brand)
             .trim_matches(['\0', ' '])
@@ -83,9 +88,50 @@ pub fn detect() -> Hardware {
                 ""
             }
         ),
+        berserk_explanation: format!(
+            "Recommended Berserk target: {berserk_recommended}. Berserk names its targets differently from Stockfish; -pext adds BMI2 move generation. {}native uses Berserk's own detection.",
+            if slow_bmi2 {
+                "PEXT is available but slow on older AMD processors, so it is not recommended. "
+            } else {
+                ""
+            }
+        ),
+        berserk_recommended,
+        berserk_choices,
         recommended,
         choices,
     }
+}
+
+/// Berserk's makefile ARCH values for the targets this CPU supports. Its
+/// x86-64 target is baseline 64-bit plus POPCNT.
+fn berserk_targets(choices: &[String]) -> Vec<String> {
+    let has = |id: &str| choices.iter().any(|c| c == id);
+    let mut targets = vec!["native".to_owned(), "x86-64".to_owned()];
+    for (stockfish, berserk) in [
+        ("x86-64-sse41-popcnt", "sse41"),
+        ("x86-64-avx2", "avx2"),
+        ("x86-64-bmi2", "avx2-pext"),
+        ("x86-64-avx512", "avx512"),
+        ("x86-64-avx512", "avx512-pext"),
+    ] {
+        if has(stockfish) {
+            targets.push(berserk.into());
+        }
+    }
+    targets
+}
+
+fn berserk_recommend(targets: &[String], slow_bmi2: bool) -> String {
+    for id in ["avx512-pext", "avx512", "avx2-pext", "avx2", "sse41"] {
+        if id.ends_with("-pext") && slow_bmi2 {
+            continue;
+        }
+        if targets.iter().any(|t| t == id) {
+            return id.into();
+        }
+    }
+    "x86-64".into()
 }
 
 fn recommend(choices: &[String], slow_bmi2: bool) -> String {
@@ -120,5 +166,19 @@ mod tests {
         assert_eq!(recommend(&choices, false), "x86-64-bmi2");
         let hardware = detect();
         assert!(hardware.choices.contains(&hardware.recommended));
+        assert!(
+            hardware
+                .berserk_choices
+                .contains(&hardware.berserk_recommended)
+        );
+    }
+    #[test]
+    fn berserk_targets_map_to_its_makefile_names() {
+        let choices = ["native", "x86-64", "x86-64-avx2", "x86-64-bmi2"].map(str::to_owned);
+        let targets = berserk_targets(&choices);
+        assert_eq!(targets, ["native", "x86-64", "avx2", "avx2-pext"]);
+        assert_eq!(berserk_recommend(&targets, true), "avx2");
+        assert_eq!(berserk_recommend(&targets, false), "avx2-pext");
+        assert_eq!(berserk_recommend(&targets[..2], false), "x86-64");
     }
 }

@@ -134,7 +134,8 @@ fn repository(engine: &str) -> Result<&'static str> {
     match engine {
         "stockfish" => Ok("official-stockfish/Stockfish"),
         "lc0" => Ok("LeelaChessZero/lc0"),
-        _ => Err("Select Stockfish or Lc0.".into()),
+        "berserk" => Ok("jhonnold/berserk"),
+        _ => Err("Select Stockfish, Lc0 or Berserk.".into()),
     }
 }
 fn field(value: &Value, name: &str) -> String {

@@ -15,7 +15,7 @@ public sealed partial class DownloadsView : UserControl, IAsyncDisposable
     private uint _page = 1, _catalogPage = 1;
     private string _output = "";
     private nint _owner;
-    private string Engine => DownloadEngine.SelectedIndex == 1 ? "lc0" : "stockfish";
+    private string Engine => DownloadEngine.SelectedIndex switch { 1 => "lc0", 2 => "berserk", _ => "stockfish" };
     public bool DownloadActive => _download.Active;
     public DownloadsView()
     {

@@ -72,7 +72,7 @@ public sealed partial class MainWindow
     {
         if (_loadingOptions || Architecture is null || AutoArchitecture is null) return;
         Architecture.IsEnabled = AutoArchitecture.IsChecked != true;
-        if (AutoArchitecture.IsChecked == true) foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == _hardware.Recommended) Architecture.SelectedItem = item;
+        if (AutoArchitecture.IsChecked == true) foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == RecommendedArchitecture) Architecture.SelectedItem = item;
     }
     private async void CopyLog_Click(object sender, RoutedEventArgs e)
     {

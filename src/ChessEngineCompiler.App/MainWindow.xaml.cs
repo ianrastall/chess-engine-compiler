@@ -29,6 +29,11 @@ public sealed partial class MainWindow : Window
     private Hardware _hardware = new();
     private readonly string DataFolder;
     private string ConfigPath => Path.Combine(DataFolder, "build-options.json");
+    // Order matches the Engine combo box.
+    private static readonly string[] Engines = ["stockfish", "lc0", "berserk"];
+    private static string EngineName(string engine) => engine switch { "lc0" => "Lc0", "berserk" => "Berserk", _ => "Stockfish" };
+    private string OptionsPath(string engine) => engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, $"{engine}-options.json");
+    private string RecommendedArchitecture => _engine == "berserk" ? _hardware.BerserkRecommended : _hardware.Recommended;
     public BuildViewModel Model { get; } = new();
     public MainWindow(string? dataFolder = null)
     {
@@ -47,11 +52,7 @@ public sealed partial class MainWindow : Window
         SettingsMenu.KeyboardAccelerators.Add(new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = (Windows.System.VirtualKey)188, Modifiers = Windows.System.VirtualKeyModifiers.Control });
         UpdateGitHubAccess();
         _hardware = _core.Call(Request.Types.Operation.Hardware).Hardware;
-        Architecture.Items.Clear();
-        foreach (var choice in _hardware.Choices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
-        Architecture.SelectedIndex = 0;
         HardwareSummary.Text = _hardware.CpuName;
-        ArchitectureExplanation.Text = _hardware.Explanation;
         DownloadPane.Initialize(_githubCredentials, _verification, WinRT.Interop.WindowNative.GetWindowHandle(this));
         var options = _core.Call(Request.Types.Operation.Defaults).Options;
         options.OutputRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Chess engine builds");
@@ -60,10 +61,11 @@ public sealed partial class MainWindow : Window
         _engineOptions["stockfish"] = options.Clone();
         try
         {
-            var lc0Path = Path.Combine(DataFolder, "lc0-options.json");
-            if (File.Exists(Path.Combine(DataFolder, "last-engine.txt")) && File.ReadAllText(Path.Combine(DataFolder, "last-engine.txt")) == "lc0" && File.Exists(lc0Path)) options = ReadOptions(File.ReadAllText(lc0Path));
+            var lastPath = Path.Combine(DataFolder, "last-engine.txt");
+            var last = File.Exists(lastPath) ? File.ReadAllText(lastPath) : "stockfish";
+            if (last is "lc0" or "berserk" && File.Exists(OptionsPath(last))) options = ReadOptions(File.ReadAllText(OptionsPath(last)));
         }
-        catch (Exception e) when (e is IOException or JsonException or InvalidOperationException) { ShowProblem("Saved Lc0 options could not be read. Stockfish settings have been restored."); }
+        catch (Exception e) when (e is IOException or JsonException or InvalidOperationException) { ShowProblem("Saved engine options could not be read. Stockfish settings have been restored."); }
         LoadOptions(options);
         Engine.SelectionChanged += Engine_Changed;
         if (!_verification) _ = LoadSourcesAsync(1);
@@ -105,8 +107,9 @@ public sealed partial class MainWindow : Window
     private void LoadOptions(BuildOptions options)
     {
         _loadingOptions = true;
-        _engine = options.Engine == "lc0" ? "lc0" : "stockfish";
-        Engine.SelectedIndex = _engine == "lc0" ? 1 : 0;
+        _engine = Engines.Contains(options.Engine) ? options.Engine : "stockfish";
+        Engine.SelectedIndex = Array.IndexOf(Engines, _engine);
+        ShowArchitectures();
         Model.SourceRef = options.SourceRef; Model.MsysRoot = options.MsysRoot; Model.OutputRoot = options.OutputRoot;
         Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo; Strip.IsChecked = options.Strip;
         AutoArchitecture.IsChecked = options.AutoArchitecture;
@@ -114,14 +117,33 @@ public sealed partial class MainWindow : Window
         PythonPath.Text = options.PythonPath; VisualStudio.Text = options.VisualStudio;
         CudaRoot.Text = options.CudaRoot; WeightsPath.Text = options.WeightsPath;
         Backend.SelectedIndex = options.Backend == "eigen" ? 1 : 0;
-        StockfishOptions.Visibility = MsysOptions.Visibility = _engine == "stockfish" ? Visibility.Visible : Visibility.Collapsed;
+        // Stockfish and Berserk share the MSYS2 GCC controls; Berserk compiles in one invocation, so parallel jobs do not apply.
+        StockfishOptions.Visibility = MsysOptions.Visibility = _engine != "lc0" ? Visibility.Visible : Visibility.Collapsed;
         Lc0Options.Visibility = _engine == "lc0" ? Visibility.Visible : Visibility.Collapsed;
-        CompileButton.Content = StartMenu.Text = _engine == "lc0" ? "Compile Lc0" : "Compile Stockfish";
-        SourceHint.Text = _engine == "lc0" ? "Default: Lc0 v0.32.1. Network weights are selected separately below." : "Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit.";
-        ToolTipService.SetToolTip(SourceRef, _engine == "lc0" ? "Select an official LeelaChessZero/lc0 release tag, branch or exact commit. The default is v0.32.1. Its pinned lczero-common submodule is fetched with it." : "Select an official Stockfish release tag, branch or exact commit. The default is sf_19; master follows development.");
+        Jobs.Visibility = _engine == "berserk" ? Visibility.Collapsed : Visibility.Visible;
+        CompileButton.Content = StartMenu.Text = $"Compile {EngineName(_engine)}";
+        SourceHint.Text = _engine switch
+        {
+            "lc0" => "Default: Lc0 v0.32.1. Network weights are selected separately below.",
+            "berserk" => "Default: Berserk 14. The network named by the source is downloaded, verified and embedded in the executable.",
+            _ => "Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit.",
+        };
+        ToolTipService.SetToolTip(SourceRef, _engine switch
+        {
+            "lc0" => "Select an official LeelaChessZero/lc0 release tag, branch or exact commit. The default is v0.32.1. Its pinned lczero-common submodule is fetched with it.",
+            "berserk" => "Select an official jhonnold/berserk release tag, branch or exact commit. The default is 14; main follows development.",
+            _ => "Select an official Stockfish release tag, branch or exact commit. The default is sf_19; master follows development.",
+        });
         _loadingOptions = false;
         AutoArchitecture_Changed(this, null!);
         Backend_Changed(this, null!);
+    }
+    private void ShowArchitectures()
+    {
+        Architecture.Items.Clear();
+        foreach (var choice in _engine == "berserk" ? _hardware.BerserkChoices : _hardware.Choices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
+        Architecture.SelectedIndex = 0;
+        ArchitectureExplanation.Text = _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
     }
     private void Engine_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -130,12 +152,12 @@ public sealed partial class MainWindow : Window
         {
             var previous = Options();
             _engineOptions[_engine] = previous;
-            var engine = Engine.SelectedIndex == 1 ? "lc0" : "stockfish";
+            var engine = Engines[Math.Clamp(Engine.SelectedIndex, 0, Engines.Length - 1)];
             if (!_engineOptions.TryGetValue(engine, out var next))
             {
                 next = _core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = engine }).Options;
                 next.OutputRoot = previous.OutputRoot; next.Jobs = previous.Jobs;
-                var path = engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, "lc0-options.json");
+                var path = OptionsPath(engine);
                 if (File.Exists(path)) next = ReadOptions(File.ReadAllText(path));
             }
             LoadOptions(next);
@@ -191,7 +213,7 @@ public sealed partial class MainWindow : Window
             Refresh();
             try
             {
-                File.WriteAllText(_engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, "lc0-options.json"), ScriptExporter.SerializeOptions(options));
+                File.WriteAllText(OptionsPath(_engine), ScriptExporter.SerializeOptions(options));
                 File.WriteAllText(Path.Combine(DataFolder, "last-engine.txt"), _engine);
             }
             catch (IOException error) { ShowProblem($"Build started, but its options could not be saved: {error.Message}"); }
@@ -277,7 +299,12 @@ public sealed partial class MainWindow : Window
         catch (Exception error) { ShowProblem(error.Message); }
     }
     private void Result_Click(object sender, RoutedEventArgs e) { if (File.Exists(_output)) OpenPath(Path.GetDirectoryName(_output)!); }
-    private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine == "lc0" ? "https://github.com/LeelaChessZero/lc0/releases" : "https://github.com/official-stockfish/Stockfish/releases");
+    private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine switch
+    {
+        "lc0" => "https://github.com/LeelaChessZero/lc0/releases",
+        "berserk" => "https://github.com/jhonnold/berserk/releases",
+        _ => "https://github.com/official-stockfish/Stockfish/releases",
+    });
     private void Networks_Click(object sender, RoutedEventArgs e) => OpenPath("https://lczero.org/play/networks/bestnets/");
     private void Log_Click(object sender, RoutedEventArgs e) { if (File.Exists(_logPath)) OpenPath(_logPath); }
     // Navigation (standard section 7, suite workspace): Compile, Downloads and Settings.
@@ -300,19 +327,20 @@ public sealed partial class MainWindow : Window
         "cli" => "GitHub CLI account",
         _ => "Anonymous, without signing in",
     };
+    private const string BerserkRequirements = "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make wget mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Berserk is built with UCRT64 GCC and a static runtime, so the result needs no MSYS2 DLLs.\n\nThe build downloads the network named by the selected source from jhonnold/berserk-networks, checks its SHA-256 against the file name and embeds it in berserk.exe. Source and network downloads need internet access. Every build has a new job folder; existing builds are kept.";
     private async void Requirements_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
         Title = "Build requirements",
         CloseButtonText = "Close",
-        Content = new TextBlock { Text = _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nTools are detected or selected; they are never installed by the app." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
+        Content = new TextBlock { Text = _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nTools are detected or selected; they are never installed by the app." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
     }.ShowAsync();
     private async void About_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
         Title = "About Chess Engine Compiler",
         CloseButtonText = "Close",
-        Content = $"Chess Engine Compiler {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}\nPart of Jupiter · MIT license · Windows 11 x64\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish and Lc0 are supported. Engines, networks and runtime libraries retain their upstream licenses."
+        Content = $"Chess Engine Compiler {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}\nPart of Jupiter · MIT license · Windows 11 x64\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish, Lc0 and Berserk are supported. Engines, networks and runtime libraries retain their upstream licenses."
     }.ShowAsync();
     private async void Exit_Click(object sender, RoutedEventArgs e) => await CloseAsync();
     private async Task CloseAsync()
