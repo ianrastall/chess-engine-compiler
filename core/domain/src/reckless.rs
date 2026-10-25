@@ -75,11 +75,10 @@ pub(super) fn build(
     // A private workspace prevents Cargo from joining any enclosing application
     // workspace when the output folder happens to be inside a Rust repository.
     // Preserve upstream sources and use the committed lockfile unchanged.
-    fs::write(
-        job.join("Cargo.toml"),
-        "[workspace]\nmembers = [\"source\"]\nresolver = \"3\"\n",
-    )
-    .map_err(|e| e.to_string())?;
+    let upstream_manifest =
+        fs::read_to_string(source.join("Cargo.toml")).map_err(|e| e.to_string())?;
+    let workspace = workspace_manifest(&upstream_manifest);
+    fs::write(job.join("Cargo.toml"), &workspace).map_err(|e| e.to_string())?;
     fs::copy(source.join("Cargo.lock"), job.join("Cargo.lock")).map_err(|e| e.to_string())?;
     phase(shared, "Check Rust toolchain");
     let rustc = tool("rustc.exe").ok_or("rustc was not found")?;
@@ -202,7 +201,7 @@ pub(super) fn build(
     if source.join("LICENSE").is_file() {
         fs::copy(source.join("LICENSE"), result.join("LICENSE")).map_err(|e| e.to_string())?;
     }
-    let manifest = serde_json::json!({ "schemaVersion": 2, "engine": "reckless", "sourceUrl": REPOSITORY, "commit": commit.trim(), "options": o, "compiler": compiler, "cargoVersion": cargo_version, "rustFlags": flags, "syzygy": false, "privateBuildWorkspace": true, "network": network, "networkSha256": network_hash, "networkUrl": network_url, "networkEmbedded": true, "networkDigestVerifiedAgainstUpstream": false, "pgoProfilesApplied": o.pgo, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar" });
+    let manifest = serde_json::json!({ "schemaVersion": 2, "engine": "reckless", "sourceUrl": REPOSITORY, "commit": commit.trim(), "options": o, "compiler": compiler, "cargoVersion": cargo_version, "rustFlags": flags, "syzygy": false, "privateBuildWorkspace": true, "cargoWorkspaceManifest": workspace, "network": network, "networkSha256": network_hash, "networkUrl": network_url, "networkEmbedded": true, "networkDigestVerifiedAgainstUpstream": false, "pgoProfilesApplied": o.pgo, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar" });
     fs::write(
         result.join("build.json"),
         serde_json::to_vec_pretty(&manifest).unwrap(),
@@ -211,6 +210,20 @@ pub(super) fn build(
     Ok(output.to_string_lossy().into_owned())
 }
 
+fn workspace_manifest(upstream: &str) -> String {
+    let mut workspace = String::from("[workspace]\nmembers = [\"source\"]\nresolver = \"3\"\n");
+    let mut profile = false;
+    for line in upstream.lines() {
+        if line.trim_start().starts_with('[') {
+            profile = line.trim_start().starts_with("[profile.");
+        }
+        if profile {
+            workspace.push_str(line);
+            workspace.push('\n');
+        }
+    }
+    workspace
+}
 fn network_name(build_script: &str) -> Result<String> {
     let name = build_script
         .lines()
@@ -243,6 +256,11 @@ mod tests {
     use super::*;
     #[test]
     fn requires_completed_search_and_safe_network() {
+        let workspace = workspace_manifest(
+            "[package]\nname=\"engine\"\n[profile.release]\nlto=\"fat\"\ncodegen-units=1\n[dependencies]\nlibc=\"0.2\"\n",
+        );
+        assert!(workspace.contains("[profile.release]\nlto=\"fat\"\ncodegen-units=1"));
+        assert!(!workspace.contains("[dependencies]"));
         assert!(bench_verified("Bench: 123 nodes 456 nps"));
         assert_eq!(
             network_name(r#"const NETWORK_NAME: &str = "net.nnue";"#).unwrap(),
