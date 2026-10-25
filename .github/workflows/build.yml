@@ -19,12 +19,25 @@ jobs:
       - name: Install pinned Rust toolchain
         shell: pwsh
         run: rustup show
+      - name: Restore pinned shared UI source
+        shell: pwsh
+        run: ./build/restore-jupiter-ui.ps1
       - name: Check and publish
         shell: pwsh
         run: ./build/build.ps1
       - name: Verify installer lifecycle and Start Menu registration
         shell: pwsh
         run: ./build/verify-install.ps1
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          if-no-files-found: ignore
+          path: |
+            target/log-view-test.txt
+            target/engine-ui-test/
+            target/install-validation/
       - uses: actions/upload-artifact@v4
         with:
           name: ChessEngineCompiler-win-x64

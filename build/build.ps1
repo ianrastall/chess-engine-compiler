@@ -1,6 +1,7 @@
 param([switch]$SkipChecks, [string]$InnoCompiler)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
+& (Join-Path $PSScriptRoot 'restore-jupiter-ui.ps1')
 $version = ([xml](Get-Content -LiteralPath (Join-Path $root 'Directory.Build.props'))).Project.PropertyGroup.Version
 if (-not $InnoCompiler) {
     $InnoCompiler = @(

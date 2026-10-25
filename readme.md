@@ -6,7 +6,7 @@ Select an engine and an official tag, branch or commit, choose build options and
 
 ## Install and run
 
-Follows Jupiter style standard 1.0 through the shared [Jupiter.UI](../jupiter-ui/readme.md) library, which must sit beside this repository (`D:\jupiter\jupiter-ui`) to build. Departures are in [docs/jupiter-exceptions.md](docs/jupiter-exceptions.md).
+Follows Jupiter style standard 1.0 through the shared Jupiter.UI library. A [pinned source snapshot](build/dependencies/readme.md) is included and restored by the build, so a fresh checkout needs no sibling repository. Departures are in [docs/jupiter-exceptions.md](docs/jupiter-exceptions.md).
 
 Run the `ChessEngineCompiler-<version>-win-x64-setup.exe` release installer. It installs for your Windows account without an administrator prompt. Open **Start > Chess Engine Compiler**, or search Start for **Chess Engine Compiler**. .NET, Windows App SDK and MSVC runtimes are included. Uninstall through Windows Settings > Apps > Installed apps. Running a newer installer upgrades the same application; settings and engine-build outputs are preserved on upgrade and uninstall. Close the app before upgrading.
 

@@ -20,3 +20,5 @@ References: workspace AGENTS.md, jupiter-plan.md, canonical WinUI/Rust stack, [J
 | Release and handoff | Versioned installer/zip/checksums, locked dependencies, Windows CI, HANDOFF.md and documented data locations/upgrade route |
 
 This audit corrected portable-only delivery, missing previous-window restoration and missing handoff documentation. No stack exception is selected. A complete high-contrast/screen-reader audit, mixed-monitor exercise, clean-machine install and code-signing trust test remain platform verification work; code inspection and a development-machine install are not presented as those tests.
+
+The shared Jupiter.UI dependency is now distributed as a pinned, unmodified source archive with commit/SHA-256 provenance. Local and CI builds use that identical library and style checker; application-defined copies of Jupiter resources remain prohibited. See build/dependencies/readme.md.

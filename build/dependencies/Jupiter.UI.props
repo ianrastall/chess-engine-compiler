@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <JupiterUiRoot>$(RepoRoot)target\dependencies\jupiter-ui\</JupiterUiRoot>
+  </PropertyGroup>
+</Project>

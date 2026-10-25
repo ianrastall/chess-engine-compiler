@@ -17,5 +17,5 @@
     <Compile Include="../../src/ChessEngineCompiler.App/Services/LogPresenter.cs" Link="LogPresenter.cs" />
   </ItemGroup>
   <!-- The log uses the Jupiter status colors, so the harness loads Jupiter.UI like the app. -->
-  <Import Project="$(RepoRoot)..\jupiter-ui\build\Jupiter.UI.targets" />
+  <Import Project="$(JupiterUiRoot)build\Jupiter.UI.targets" />
 </Project>

@@ -18,6 +18,8 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
   </PropertyGroup>
 
+  <Import Project="build/dependencies/Jupiter.UI.props" />
+
   <Target Name="RejectUnsupportedPlatform" BeforeTargets="Restore;Build" Condition="'$(Platform)' != 'x64' or '$(RuntimeIdentifier)' != 'win-x64'">
     <Error Text="Chess Engine Compiler builds only for Platform x64 and RuntimeIdentifier win-x64 (got $(Platform) / $(RuntimeIdentifier))." />
   </Target>
