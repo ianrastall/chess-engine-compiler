@@ -55,10 +55,27 @@ caissa.OutputRoot = Path.GetTempPath(); caissa.Pgo = true;
 try { core.Call(Request.Types.Operation.Plan, caissa); throw new Exception("Unsupported Caissa PGO accepted."); }
 catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
 var alexandria = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "alexandria" }).Options;
-if (alexandria.SourceRef != "v9.1.0" || alexandria.Architecture != hardware.CppRecommended) throw new Exception("Wrong Alexandria defaults/hardware.");
+if (alexandria.SourceRef != "v9.1.0" || alexandria.Architecture != (hardware.CppRecommended == "x86-64" ? "" : hardware.CppRecommended)) throw new Exception("Wrong Alexandria defaults/hardware.");
 alexandria.OutputRoot = Path.GetTempPath(); alexandria.Pgo = true;
 try { core.Call(Request.Types.Operation.Plan, alexandria); throw new Exception("Unsupported Alexandria PGO accepted."); }
 catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
+var avalanche = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "avalanche" }).Options;
+if (avalanche.SourceRef != "v5.0.0" || avalanche.Pgo || avalanche.Architecture != "native") throw new Exception("Wrong Avalanche defaults.");
+avalanche.ZigPath = @"D:\Zig tools\zig.exe";
+if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(avalanche)).Equals(avalanche)) throw new Exception("Avalanche Zig path did not round-trip.");
+var toolCatalog = core.Call(Request.Types.Operation.ToolCatalog).Tools;
+if (!toolCatalog.Any(t => t.Id == "zig" && t.Name.Contains("0.17.0")) || !toolCatalog.Any(t => t.Id == "rust")) throw new Exception("Typed build-tool catalog failed.");
+try { core.Call(Request.Types.Operation.ToolSetupStart, toolSetup: new ToolSetupOptions { ToolId = "zig;calc", DestinationRoot = Path.GetTempPath() }); throw new Exception("Unsafe setup action accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("supported build tool")) { }
+if (toolCatalog.Single(t => t.Id == "rust").Status.StartsWith("Detected:"))
+{
+    var setupFolder = Path.Combine(Path.GetTempPath(), "cec-tool-setup-" + Guid.NewGuid().ToString("N"));
+    core.Call(Request.Types.Operation.ToolSetupStart, toolSetup: new ToolSetupOptions { ToolId = "rust", DestinationRoot = setupFolder });
+    var deadline = DateTime.UtcNow.AddSeconds(20);
+    Snapshot setup;
+    do { setup = core.Call(Request.Types.Operation.Status).Snapshot; if (setup.State != "Running") break; Thread.Sleep(50); } while (DateTime.UtcNow < deadline);
+    if (setup.State != "Completed" || !setup.Message.Contains("already detected") || !File.Exists(setup.LogPath)) throw new Exception("Typed setup worker/log lifecycle failed.");
+}
 core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
 var networkDeadline = DateTime.UtcNow.AddSeconds(5);
 GitHubSnapshot network;

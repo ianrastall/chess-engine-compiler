@@ -11,7 +11,7 @@ struct Args {
 enum Action {
     /// Print detected MSYS2 UCRT64 tools and default options.
     Doctor {
-        #[arg(long, default_value = "stockfish", value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa", "alexandria"])]
+        #[arg(long, default_value = "stockfish", value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa", "alexandria", "avalanche"])]
         engine: String,
     },
     /// Validate a JSON build configuration and print its steps.
@@ -20,9 +20,22 @@ enum Action {
     Build { config: std::path::PathBuf },
     /// Print this computer's compatible CPU targets and recommendation.
     Hardware,
+    /// Inspect build tools or explicitly install one; tool IDs come from tools list.
+    Tools {
+        #[arg(default_value="list", value_parser=["list","install"])]
+        action: String,
+        #[arg(default_value = "")]
+        tool_id: String,
+        #[arg(long, default_value = "")]
+        msys_root: String,
+        #[arg(long, default_value = "")]
+        python_path: String,
+        #[arg(long, default_value = "")]
+        destination_root: String,
+    },
     /// Browse upstream GitHub versions/downloads. Credentials never enter command arguments.
     Github {
-        #[arg(value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa", "alexandria"])]
+        #[arg(value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa", "alexandria", "avalanche"])]
         engine: String,
         #[arg(long, default_value="catalog", value_parser=["catalog","assets","artifacts","download-release","download-artifact","account"])]
         action: String,
@@ -44,6 +57,50 @@ fn main() {
 }
 fn execute() -> Result<(), Box<dyn std::error::Error>> {
     match Args::parse().command {
+        Action::Tools {
+            action,
+            tool_id,
+            msys_root,
+            python_path,
+            destination_root,
+        } => {
+            let mut o = compiler_core::tools::SetupOptions {
+                tool_id,
+                ..Default::default()
+            };
+            if !msys_root.is_empty() {
+                o.msys_root = msys_root;
+            }
+            o.python_path = python_path;
+            if !destination_root.is_empty() {
+                o.destination_root = destination_root;
+            }
+            if action == "list" {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&compiler_core::tools::catalog(&o))?
+                );
+            } else {
+                let core = Compiler::default();
+                core.start_tool_setup(o)?;
+                let mut phase = String::new();
+                loop {
+                    let snapshot = core.snapshot();
+                    if phase != snapshot.phase {
+                        println!("{}", snapshot.phase);
+                        phase = snapshot.phase;
+                    }
+                    if !matches!(snapshot.state.as_str(), "Running" | "Cancelling") {
+                        println!("{}\nLog: {}", snapshot.message, snapshot.log_path);
+                        if snapshot.state != "Completed" {
+                            return Err(snapshot.message.into());
+                        }
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(250));
+                }
+            }
+        }
         Action::Hardware => println!(
             "{}",
             serde_json::to_string_pretty(&compiler_core::hardware::detect())?

@@ -39,6 +39,7 @@
                 <MenuFlyoutItem x:Name="CancelMenu" Text="Cancel build" Click="Cancel_Click" IsEnabled="False"/>
                 <MenuFlyoutSeparator/>
                 <MenuFlyoutItem Text="Detect build tools" Click="Detect_Click"/>
+                <MenuFlyoutItem Text="Set up build tools&#x2026;" Click="Tools_Click"/>
             </MenuBarItem>
             <MenuBarItem Title="Help">
                 <MenuFlyoutItem Text="Build requirements…" Click="Requirements_Click"/>
@@ -115,6 +116,14 @@
                                     <CheckBox x:Name="Strip" Content="Strip executable symbols" IsChecked="True"
                                         ToolTipService.ToolTip="Remove debugging and symbol information from the finished executable to reduce its file size. This does not remove chess features. Turn it off if you need symbols for debugging or diagnosing crashes."/>
                                 </StackPanel>
+                                <StackPanel x:Name="ZigOptions" Spacing="4" Visibility="Collapsed">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBox x:Name="ZigPath" Header="Zig executable (version 0.17.0)" IsReadOnly="True" ToolTipService.ToolTip="Select Zig 0.17.0, or use Settings > Build tools for a verified installation."/>
+                                        <Button Grid.Column="1" Content="Browse&#x2026;" VerticalAlignment="Bottom" Click="BrowseZig_Click"/>
+                                    </Grid>
+                                    <TextBlock Text="Avalanche needs Zig 0.17.0. Use Settings > Build tools for a verified installation without PATH changes." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                </StackPanel>
                                 <StackPanel x:Name="Lc0Options" Spacing="16" Visibility="Collapsed">
                                     <StackPanel Spacing="4">
                                         <ComboBox x:Name="Backend" Header="Neural-network backend" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="Backend_Changed"
@@ -185,6 +194,10 @@
                         <StackPanel Spacing="12">
                             <TextBlock Style="{StaticResource JupiterSectionHeadingTextStyle}" Text="Appearance"/>
                             <jupiter:AccentColorSetting x:Name="AccentSetting"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <TextBlock Style="{StaticResource JupiterSectionHeadingTextStyle}" Text="Build tools"/>
+                            <views:ToolSetupView x:Name="ToolSetupPane"/>
                         </StackPanel>
                         <StackPanel Spacing="12">
                             <TextBlock Style="{StaticResource JupiterSectionHeadingTextStyle}" Text="GitHub"/>

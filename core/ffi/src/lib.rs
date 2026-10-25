@@ -29,6 +29,7 @@ impl From<messages::BuildOptions> for BuildOptions {
             cuda_root: o.cuda_root,
             weights_path: o.weights_path,
             auto_architecture: o.auto_architecture,
+            zig_path: o.zig_path,
         }
     }
 }
@@ -49,6 +50,7 @@ impl From<BuildOptions> for messages::BuildOptions {
             cuda_root: o.cuda_root,
             weights_path: o.weights_path,
             auto_architecture: o.auto_architecture,
+            zig_path: o.zig_path,
         }
     }
 }
@@ -114,6 +116,40 @@ pub unsafe extern "C" fn cec_call(
         let operation = messages::request::Operation::try_from(request.operation);
         use messages::request::Operation::*;
         let result = match operation {
+            Ok(ToolCatalog | ToolSetupStart) => {
+                let defaults = compiler_core::tools::SetupOptions::default();
+                let q = request.tool_setup.unwrap_or_default();
+                let options = compiler_core::tools::SetupOptions {
+                    tool_id: q.tool_id,
+                    msys_root: if q.msys_root.is_empty() {
+                        defaults.msys_root
+                    } else {
+                        q.msys_root
+                    },
+                    python_path: q.python_path,
+                    destination_root: if q.destination_root.is_empty() {
+                        defaults.destination_root
+                    } else {
+                        q.destination_root
+                    },
+                };
+                if operation == Ok(ToolCatalog) {
+                    response.tools = compiler_core::tools::catalog(&options)
+                        .into_iter()
+                        .map(|t| messages::BuildTool {
+                            id: t.id,
+                            name: t.name,
+                            status: t.status,
+                            details: t.details,
+                            url: t.url,
+                            install_available: t.install_available,
+                        })
+                        .collect();
+                    Ok(())
+                } else {
+                    core.start_tool_setup(options)
+                }
+            }
             Ok(Hardware) => {
                 let h = compiler_core::hardware::detect();
                 response.hardware = Some(messages::Hardware {
@@ -293,6 +329,7 @@ mod tests {
                 operation: 1,
                 options: None,
                 github: None,
+                tool_setup: None,
             }
             .encode_to_vec();
             let mut result = ptr::null_mut();

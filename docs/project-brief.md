@@ -65,3 +65,7 @@ Caissa 2.0 uses a separate regular GCC adapter, with an embedded source-selected
 ## Additional engine: Alexandria
 
 Alexandria v9.1.0 builds with regular MSYS2 UCRT64 GCC, source-hash-selected network download/preprocessing, AVX2/BMI2 targets and reference benchmark validation. The scalar baseline is excluded after failing that validation. See [Alexandria](alexandria.md).
+
+## Additional engine: Avalanche and explicit tool setup
+
+Avalanche v5.0.0 uses Zig 0.17.0 with its tracked network and vendored C translator. Native/baseline builds must match the source benchmark. A typed Rust tool-setup service supports explicit, reviewed language/compiler installs and private Zig/Python environments; nothing is installed silently on build start. See [Avalanche](avalanche.md) and [Build tools](build-tools.md).

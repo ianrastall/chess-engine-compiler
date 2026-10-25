@@ -1,0 +1,30 @@
+<UserControl x:Class="Jupiter.ChessEngineCompiler.App.Views.ToolSetupView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Spacing="12">
+        <TextBlock x:Name="EngineRequirements" Style="{StaticResource JupiterBodyTextStyle}" TextWrapping="Wrap"/>
+        <TextBlock Text="Select a tool to review its setup. Nothing is installed until you choose Install selected tool. WinGet actions accept the selected package and source license agreements and may open an installer or request administrator approval." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+        <ComboBox x:Name="ToolChoice" Header="Build tool" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="Tool_Changed"/>
+        <TextBlock x:Name="DetectedStatus" IsTextSelectionEnabled="True" TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+        <TextBlock x:Name="Details" IsTextSelectionEnabled="True" TextWrapping="Wrap" Style="{StaticResource JupiterBodyTextStyle}"/>
+        <TextBlock x:Name="SelectedPaths" IsTextSelectionEnabled="True" TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="InstallTool" Content="Install selected tool" Style="{StaticResource AccentButtonStyle}" Click="Install_Click"/>
+            <Button x:Name="CheckTools" Content="Check tools" Click="Check_Click"/>
+            <Button x:Name="OfficialDownload" Content="Official downloads" Click="Download_Click"/>
+        </StackPanel>
+        <TextBlock x:Name="SetupStatus" IsTextSelectionEnabled="True" TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+        <ProgressBar x:Name="SetupProgress" Visibility="Collapsed" IsIndeterminate="False"/>
+        <CheckBox x:Name="FollowSetupOutput" Content="Follow output" IsChecked="True"/>
+        <ScrollViewer x:Name="SetupScroll" MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+            Background="{ThemeResource JupiterSurfaceBrush}" BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="1">
+            <TextBlock x:Name="SetupLog" Padding="12" IsTextSelectionEnabled="True" Style="{StaticResource JupiterMonoCaptionTextStyle}"/>
+        </ScrollViewer>
+        <TextBlock x:Name="SetupLogStatus" Style="{StaticResource JupiterCaptionTextStyle}" Text="Latest 300 lines; the full setup log is saved to disk."/>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="CancelSetup" Content="Cancel setup" IsEnabled="False" Click="Cancel_Click"/>
+            <Button x:Name="OpenSetupLog" Content="Open saved log" IsEnabled="False" Click="Log_Click"/>
+        </StackPanel>
+        <TextBlock Text="Cancelling stops setup processes where possible. Installers and partially installed tools may remain; check them before retrying. Setup logs and existing engine jobs are kept. Restart the app after installers change PATH." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+    </StackPanel>
+</UserControl>

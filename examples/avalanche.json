@@ -1,0 +1,5 @@
+{
+  "engine": "avalanche", "sourceRef": "v5.0.0", "zigPath": "C:/tools/zig-0.17.0/zig.exe",
+  "outputRoot": "D:/Chess engine builds", "architecture": "native", "autoArchitecture": true,
+  "jobs": 4, "pgo": false, "strip": true
+}

@@ -140,6 +140,7 @@ fn repository(engine: &str) -> Result<&'static str> {
         "igel" => Ok("vshcherbyna/igel"),
         "caissa" => Ok("Witek902/Caissa"),
         "alexandria" => Ok("PGG106/Alexandria"),
+        "avalanche" => Ok("SnowballSH/Avalanche"),
         _ => Err("Select a supported engine.".into()),
     }
 }

@@ -2,7 +2,7 @@
 
 Read `readme.md` and `docs/project-brief.md` first. Follow `D:/jupiter/jupiter-plan.md` and the shared stack/interface references under `D:/jupiter/_standards`.
 
-This is a new application/repository. Leave `D:/GitHub/StockfishCompiler` intact. Stockfish, Lc0 (CUDA and CPU Eigen) and Berserk (MSYS2 GCC) are implemented. Do not expose unsupported engine/backend controls as working features.
+This is a new application/repository. Leave `D:/GitHub/StockfishCompiler` intact. Alexandria, Avalanche, Berserk, Caissa, Igel, Lc0 (CUDA and CPU Eigen), Obsidian, Reckless and Stockfish are implemented. Language/tool setup is explicit and Rust-owned; never silently install or upgrade a toolchain on build start. Do not expose unsupported engine/backend controls as working features.
 
 Rust owns build validation, source acquisition, process execution, cancellation and verification. The WinUI shell uses the typed protobuf C ABI; scripts use the Rust CLI. Keep argument handling shared and avoid interpolating user values into shell commands. Preserve previous job folders. Success requires a verified executable and build provenance.
 

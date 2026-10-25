@@ -1,6 +1,6 @@
 # Chess Engine Compiler
 
-Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.5 supports Stockfish, Lc0, Berserk, Obsidian, Reckless and Igel, GitHub version browsing and separate binary downloads.
+Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.6 supports Alexandria, Avalanche, Berserk, Caissa, Igel, Lc0, Obsidian, Reckless and Stockfish, GitHub version browsing and separate binary downloads.
 
 Select an engine and an official tag, branch or commit, choose build options and compile. The GUI shows the current phase and live output, can cancel compilation, and saves the executable, exact source commit, compiler version, settings, source archive and full log. Export build scripts creates PowerShell and batch entry points with a standalone CLI and the selected configuration.
 
@@ -12,7 +12,9 @@ Run the `ChessEngineCompiler-<version>-win-x64-setup.exe` release installer. It 
 
 A portable zip is supplied as an additional option. Extract it and keep its files together. The installer is the standard Jupiter delivery route.
 
-Install [MSYS2](https://www.msys2.org/) separately. In its UCRT64 terminal, update with `pacman -Syu` (restart/repeat when prompted), then install:
+Open **Settings > Build tools** to detect, download and explicitly install the required languages and compiler tools. Simple installs use WinGet; Zig and Meson/Ninja use private app folders. Native installer choices remain visible. See [build-tool setup](docs/build-tools.md). Nothing is installed automatically when selecting an engine or starting a build.
+
+For manual GCC setup, install [MSYS2](https://www.msys2.org/). In its UCRT64 terminal, update with `pacman -Syu` (restart/repeat when prompted), then install:
 
 ```sh
 pacman -S --needed git make mingw-w64-ucrt-x86_64-gcc
@@ -24,9 +26,21 @@ Each build creates a new job folder below the selected output folder. **Open res
 
 **Follow output** keeps the newest log lines visible. Scrolling up, dragging the log scrollbar or selecting text pauses the view so incoming updates do not interrupt reading or copying. Re-enable **Follow output** to catch up; compilation continues while the view is paused. The full log remains available through **Open saved log**. Hover over build options for their meaning and practical tradeoffs, including PGO, architecture, jobs and symbol stripping.
 
+## Alexandria
+
+Build Alexandria v9.1.0 with MSYS2 UCRT64 GCC using AVX2 or BMI2. Its source-pinned network is verified and preprocessed; the benchmark must match the source reference. The scalar baseline and PGO are unavailable. See [Alexandria](docs/alexandria.md).
+
+## Avalanche
+
+Build Avalanche v5.0.0 with Zig 0.17.0. **Settings > Build tools** can download, hash-check and install Zig privately without PATH changes. Native and portable baseline executables embed the tracked network and must match the source benchmark. See [Avalanche](docs/avalanche.md).
+
+## Caissa
+
+Build Caissa 2.0 with MSYS2 UCRT64 GCC. Its source-selected network is embedded and checked against the published digest. Regular x86-64, AVX2 and BMI2 builds are supported; PGO is unavailable. See [Caissa](docs/caissa.md).
+
 ## Lc0
 
-Select **Lc0** to show its backend, Python/Meson, Visual Studio, CUDA and network controls. Each engine retains separate settings. Supported Lc0 backends are NVIDIA CUDA and CPU Eigen. Each result includes the selected network and any required CUDA runtime DLLs, and must pass a real standalone neural-network search. See [Lc0 tools, networks and build instructions](docs/lc0.md). The app does not install compiler tools.
+Select **Lc0** to show its backend, Python/Meson, Visual Studio, CUDA and network controls. Each engine retains separate settings. Supported Lc0 backends are NVIDIA CUDA and CPU Eigen. Each result includes the selected network and any required CUDA runtime DLLs, and must pass a real standalone neural-network search. See [Lc0 tools, networks and build instructions](docs/lc0.md). Settings > Build tools offers explicit setup; CUDA remains guided through its official installer.
 
 ## Berserk
 
@@ -48,7 +62,7 @@ Select **Igel** for a GCC build of 3.8.0 with its standard embedded NNUE and Syz
 
 The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
 
-Stockfish, Berserk, Obsidian, Reckless and Igel detect this CPU and offer only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
+Engine selectors are alphabetical and retain settings by engine ID. Stockfish, Berserk, Caissa, Alexandria, Obsidian, Reckless and Igel detect this CPU and offer only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
 
 **Settings > GitHub > Manage GitHub access** supports anonymous access, a masked personal access token saved in Windows Credential Manager, or an existing GitHub CLI account. **Sign in through browser** uses GitHub CLI's device-code flow. Tokens never enter build JSON, exported scripts or logs. Authentication raises API limits and enables authorized workflow downloads. See [GitHub access and downloads](docs/github.md).
 
@@ -64,7 +78,7 @@ The separate **Downloads** work area lists release assets and authenticated work
 .\chess-engine-compiler.exe build .\stockfish.json
 ```
 
-Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [example configurations](examples) for all six engines document editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts.
+Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [example configurations](examples) for all nine engines document editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts.
 
 ## Develop
 

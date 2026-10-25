@@ -1,6 +1,6 @@
 # Chess Engine Compiler handoff
 
-Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.5.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
+Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.6.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
 
 ## Build and verify
 
@@ -35,3 +35,8 @@ See docs/github.md for API permissions, pagination, binary provenance, expiry, c
 
 
 Version 0.5 adds independently verified adapters for Obsidian (MSYS2 GCC, regular/PGO), Reckless (Rust/MSVC, regular without Syzygy), and Igel (MSYS2 GCC, standard NNUE/Syzygy, regular). New hardware fields are additive protobuf ABI fields. Each adapter validates its own target names; unsupported PGO and variants are hidden/rejected. See docs/obsidian.md, docs/reckless.md, docs/igel.md and the fresh source-build evidence in docs/validation.md. Reckless creates a private Cargo workspace containing the upstream profile settings and committed lockfile; generated workspace text is recorded in its manifest.
+
+
+Version 0.6 adds Caissa 2.0, Alexandria v9.1.0 and Avalanche v5.0.0, each verified by fresh optimized and supported baseline/AVX2 source builds. All nine engines share alphabetical selectors with stable IDs. New adapters expose regular builds only; Alexandria's mismatching scalar baseline is rejected. Avalanche requires Zig 0.17.0 and checks bench.nodes. The source-pinned shared Jupiter.UI snapshot remains mandatory in both local and CI builds.
+
+Settings > Build tools uses Rust-owned, explicit setup operations through additive protobuf operations/fields (C ABI v1). WinGet installs are allowlisted and interactive, Zig is downloaded/hash-checked privately, Meson/Ninja use a private venv, GCC packages use the selected MSYS2 root, and CUDA uses official guided downloads. Tools/setup logs survive upgrades and uninstall. The GUI prevents build/setup overlap and asks before closing active work; elevated installers may leave partial installations after cancellation. See docs/build-tools.md and docs/validation.md for validation limits.

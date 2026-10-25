@@ -107,6 +107,15 @@ public sealed partial class MainWindow
         SelectEngine("caissa"); Require(Options().Equals(caissa), "Alexandria changed Caissa settings.");
         SelectEngine("alexandria"); Require(Options().Equals(alexandria), "Alexandria options were not retained.");
         SelectEngine("lc0");
+        SelectEngine("avalanche");
+        Require(Model.SourceRef == "v5.0.0" && Pgo.Visibility == Visibility.Collapsed && ZigOptions.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Collapsed && Jobs.Visibility == Visibility.Visible, "Avalanche controls are wrong.");
+        Require(Options().Architecture == "native", "Avalanche recommendation is wrong.");
+        ZigPath.Text = @"D:\Zig tools\zig.exe";
+        var avalanche = Options();
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "avalanche.png"));
+        SelectEngine("alexandria"); Require(Options().Equals(alexandria) && ZigOptions.Visibility == Visibility.Collapsed, "Avalanche changed Alexandria settings.");
+        SelectEngine("avalanche"); Require(Options().Equals(avalanche), "Avalanche options were not retained.");
+        SelectEngine("lc0");
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);
@@ -128,7 +137,10 @@ public sealed partial class MainWindow
         Require(SettingsPage.Visibility == Visibility.Visible && AccentSetting.Service is not null, "Settings page or its shared accent control is not connected.");
         Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "settings.png"));
-        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, engine switching and Caissa, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        await ToolSetupPane.VerifyControlsAsync();
+        ToolSetupPane.StartBringIntoView(); Root.UpdateLayout(); await Task.Delay(200);
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "build-tools.png"));
+        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, switching across all nine engines, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)
@@ -150,6 +162,7 @@ public sealed partial class MainWindow
         _timer.Stop();
         await _sourceSession.DisposeAsync();
         await DownloadPane.DisposeAsync();
+        await ToolSetupPane.DisposeAsync();
         await Task.Run(_core.Dispose);
         _allowClose = true; Close();
     }

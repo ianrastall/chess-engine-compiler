@@ -1,0 +1,7 @@
+# Avalanche
+
+[Avalanche](https://github.com/SnowballSH/Avalanche) is GPL-3.0-only Zig. Default source: `v5.0.0`, verified with **Zig 0.17.0**. Git for Windows is required. A separate C compiler is not needed: Zig builds the bundled Pyrrhic C code and the vendored translate-c/aro dependencies. Settings > Build tools downloads and verifies the supported Zig archive into an app-private versioned folder; users can alternatively browse to their own Zig executable.
+
+Targets are `native` (Zig detects this computer's CPU) and `x86_64` (portable baseline), both for Windows x64 GNU ABI. Regular ReleaseFast builds honor jobs and symbol stripping. PGO is unavailable and rejected. Each job has private Zig local/global caches through Zig's environment variables, avoiding unsupported build-runner flags and preserving previous jobs.
+
+The source's tracked network is embedded and hashed; the source archive includes it and the vendored dependencies. The executable reports the resolved source commit as its version. Every result must answer UCI/readiness and complete a positive-node standalone benchmark with only System32 on PATH, matching the exact source `bench.nodes`. The manifest records source URL/commit, Zig version/path, options, network SHA-256, actual/reference nodes, license/archive and full log. Other Zig versions, older source layouts, WebAssembly and ARM builds are not claimed supported.

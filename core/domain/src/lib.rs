@@ -16,6 +16,7 @@ use std::{
 
 type Result<T> = std::result::Result<T, String>;
 mod alexandria;
+mod avalanche;
 mod berserk;
 mod caissa;
 pub mod github;
@@ -24,6 +25,7 @@ mod igel;
 mod lc0;
 mod obsidian;
 mod reckless;
+pub mod tools;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -42,6 +44,7 @@ pub struct BuildOptions {
     pub cuda_root: String,
     pub weights_path: String,
     pub auto_architecture: bool,
+    pub zig_path: String,
 }
 
 impl Default for BuildOptions {
@@ -64,6 +67,7 @@ impl Default for BuildOptions {
             cuda_root: String::new(),
             weights_path: String::new(),
             auto_architecture: false,
+            zig_path: String::new(),
         }
     }
 }
@@ -77,6 +81,7 @@ pub fn defaults(engine: &str) -> BuildOptions {
         "igel" => igel::defaults(),
         "caissa" => caissa::defaults(),
         "alexandria" => alexandria::defaults(),
+        "avalanche" => avalanche::defaults(),
         _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
@@ -94,6 +99,7 @@ fn engine_name(engine: &str) -> &'static str {
         "igel" => "Igel",
         "caissa" => "Caissa",
         "alexandria" => "Alexandria",
+        "avalanche" => "Avalanche",
         _ => "Stockfish",
     }
 }
@@ -153,6 +159,7 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     let mut resolved = options.clone();
     if resolved.auto_architecture {
         match resolved.engine.as_str() {
+            "avalanche" => resolved.architecture = "native".into(),
             "stockfish" => resolved.architecture = hardware::detect().recommended,
             "berserk" => resolved.architecture = hardware::detect().berserk_recommended,
             "obsidian" => resolved.architecture = hardware::detect().obsidian_recommended,
@@ -173,6 +180,7 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
             | "igel"
             | "caissa"
             | "alexandria"
+            | "avalanche"
     ) {
         return Err("Select a supported engine.".into());
     }
@@ -214,6 +222,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     }
     if options.engine == "alexandria" {
         return alexandria::plan(options);
+    }
+    if options.engine == "avalanche" {
+        return avalanche::plan(options);
     }
     let compatible = hardware::detect().choices.contains(&options.architecture);
     if !compatible {
@@ -366,7 +377,7 @@ impl Compiler {
         let mut shared = self.shared.lock().unwrap();
         if shared.snapshot.state == "Running" {
             shared.snapshot.state = "Cancelling".into();
-            shared.snapshot.message = "Stopping the build process tree…".into();
+            shared.snapshot.message = "Stopping the running process tree…".into();
             self.cancel.store(true, Ordering::SeqCst);
         }
     }
@@ -612,6 +623,9 @@ fn build(
     }
     if options.engine == "alexandria" {
         return alexandria::build(options, &job, shared, cancel);
+    }
+    if options.engine == "avalanche" {
+        return avalanche::build(options, &job, shared, cancel);
     }
     let root = Path::new(&options.msys_root);
     let path = std::env::join_paths(

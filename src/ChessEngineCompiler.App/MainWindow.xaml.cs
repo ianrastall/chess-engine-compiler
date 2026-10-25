@@ -32,9 +32,10 @@ public sealed partial class MainWindow : Window
     private static readonly string[] Engines = EngineCatalog.Items.Select(e => e.Id).ToArray();
     private static string EngineName(string engine) => EngineCatalog.Name(engine);
     private string OptionsPath(string engine) => engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, $"{engine}-options.json");
-    private string RecommendedArchitecture => _engine == "alexandria" && _hardware.CppRecommended == "x86-64" ? "" : _engine is "caissa" or "alexandria" ? _hardware.CppRecommended : _engine == "igel" ? _hardware.IgelRecommended : _engine == "reckless" ? _hardware.RecklessRecommended : _engine == "obsidian" ? _hardware.ObsidianRecommended : _engine == "berserk" ? _hardware.BerserkRecommended : _hardware.Recommended;
+    private string RecommendedArchitecture => _engine == "avalanche" ? "native" : _engine == "alexandria" && _hardware.CppRecommended == "x86-64" ? "" : _engine is "caissa" or "alexandria" or "avalanche" ? _hardware.CppRecommended : _engine == "igel" ? _hardware.IgelRecommended : _engine == "reckless" ? _hardware.RecklessRecommended : _engine == "obsidian" ? _hardware.ObsidianRecommended : _engine == "berserk" ? _hardware.BerserkRecommended : _hardware.Recommended;
     private IEnumerable<string> ArchitectureChoices => _engine switch
     {
+        "avalanche" => new[] { "native", "x86_64" },
         "caissa" => _hardware.CppChoices,
         "alexandria" => _hardware.CppChoices.Where(c => c != "x86-64"),
         "igel" => _hardware.IgelChoices,
@@ -77,6 +78,12 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception e) when (e is IOException or JsonException or InvalidOperationException) { ShowProblem("Saved engine options could not be read. Stockfish settings have been restored."); }
         LoadOptions(options);
+        ToolSetupPane.ToolInstalled += id =>
+        {
+            if (id is "msys2" or "gcc" && string.IsNullOrWhiteSpace(Model.MsysRoot)) Model.MsysRoot = _core.Call(Request.Types.Operation.Defaults).Options.MsysRoot;
+            if (id == "zig" && _engine == "avalanche") ZigPath.Text = _core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "avalanche" }).Options.ZigPath;
+            if (id == "meson" && _engine == "lc0") PythonPath.Text = _core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "lc0" }).Options.PythonPath;
+        };
         Engine.SelectionChanged += Engine_Changed;
         if (!_verification) _ = LoadSourcesAsync(1);
         _timer = DispatcherQueue.CreateTimer();
@@ -121,22 +128,25 @@ public sealed partial class MainWindow : Window
         Engine.SelectedIndex = Array.IndexOf(Engines, _engine);
         ShowArchitectures();
         Model.SourceRef = options.SourceRef; Model.MsysRoot = options.MsysRoot; Model.OutputRoot = options.OutputRoot;
-        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && _engine is not ("reckless" or "igel" or "caissa" or "alexandria"); Strip.IsChecked = options.Strip;
+        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && _engine is not ("reckless" or "igel" or "caissa" or "alexandria" or "avalanche"); Strip.IsChecked = options.Strip;
         AutoArchitecture.IsChecked = options.AutoArchitecture;
         foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == options.Architecture) Architecture.SelectedItem = item;
+        ZigPath.Text = options.ZigPath;
         PythonPath.Text = options.PythonPath; VisualStudio.Text = options.VisualStudio;
         CudaRoot.Text = options.CudaRoot; WeightsPath.Text = options.WeightsPath;
         Backend.SelectedIndex = options.Backend == "eigen" ? 1 : 0;
         // Stockfish and Berserk share the MSYS2 GCC controls; Berserk compiles in one invocation, so parallel jobs do not apply.
         StockfishOptions.Visibility = _engine != "lc0" ? Visibility.Visible : Visibility.Collapsed;
-        MsysOptions.Visibility = _engine is "lc0" or "reckless" ? Visibility.Collapsed : Visibility.Visible;
+        MsysOptions.Visibility = _engine is "lc0" or "reckless" or "avalanche" ? Visibility.Collapsed : Visibility.Visible;
         RustRequirements.Visibility = _engine == "reckless" ? Visibility.Visible : Visibility.Collapsed;
-        Pgo.Visibility = _engine is "reckless" or "igel" or "caissa" or "alexandria" ? Visibility.Collapsed : Visibility.Visible;
+        Pgo.Visibility = _engine is "reckless" or "igel" or "caissa" or "alexandria" or "avalanche" ? Visibility.Collapsed : Visibility.Visible;
+        ZigOptions.Visibility = _engine == "avalanche" ? Visibility.Visible : Visibility.Collapsed;
         Lc0Options.Visibility = _engine == "lc0" ? Visibility.Visible : Visibility.Collapsed;
         Jobs.Visibility = _engine is "berserk" or "igel" ? Visibility.Collapsed : Visibility.Visible;
         CompileButton.Content = StartMenu.Text = $"Compile {EngineName(_engine)}";
         SourceHint.Text = _engine switch
         {
+            "avalanche" => "Default: Avalanche v5.0.0. Zig 0.17.0, embedded tracked network and vendored dependencies. PGO is unavailable.",
             "alexandria" => "Default: Alexandria v9.1.0. GCC regular build with a source-pinned, verified and preprocessed network. PGO is unavailable.",
             "caissa" => "Default: Caissa 2.0. GCC regular build with a hash-checked embedded network. PGO is unavailable.",
             "lc0" => "Default: Lc0 v0.32.1. Network weights are selected separately below.",
@@ -148,6 +158,7 @@ public sealed partial class MainWindow : Window
         };
         ToolTipService.SetToolTip(SourceRef, _engine switch
         {
+            "avalanche" => "Select a SnowballSH/Avalanche release tag, branch or exact commit. Default: v5.0.0, verified with Zig 0.17.0.",
             "alexandria" => "Select a PGG106/Alexandria release tag, branch or exact commit. Default: v9.1.0.",
             "caissa" => "Select a Witek902/Caissa release tag, branch or exact commit. Default: 2.0.",
             "lc0" => "Select an official LeelaChessZero/lc0 release tag, branch or exact commit. The default is v0.32.1. Its pinned lczero-common submodule is fetched with it.",
@@ -166,7 +177,7 @@ public sealed partial class MainWindow : Window
         Architecture.Items.Clear();
         foreach (var choice in ArchitectureChoices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
         Architecture.SelectedIndex = Architecture.Items.Count > 0 ? 0 : -1;
-        ArchitectureExplanation.Text = _engine == "alexandria" ? $"Recommended Alexandria target: {RecommendedArchitecture}. AVX2/FMA is required for a reference-matching build. Older AMD CPUs avoid PEXT." : _engine == "caissa" ? $"Recommended {EngineName(_engine)} target: {_hardware.CppRecommended}. Only compatible targets are offered; older AMD CPUs avoid PEXT." : _engine == "igel" ? (_hardware.IgelChoices.Count == 0 ? "Igel NNUE requires AVX2 and POPCNT; this CPU cannot run it." : $"Recommended Igel target: {_hardware.IgelRecommended}. AVX2 is required; PEXT is avoided on older AMD CPUs.") : _engine == "reckless" ? $"Recommended Reckless target: {_hardware.RecklessRecommended}. AVX2 uses vector evaluation; x86-64 favors compatibility." : _engine == "obsidian" ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}. Only compatible targets are offered; PEXT is avoided on older AMD CPUs." : _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
+        ArchitectureExplanation.Text = _engine == "avalanche" ? "native targets this computer using Zig CPU detection. x86_64 builds the portable baseline. Both run the source reference benchmark before success." : _engine == "alexandria" ? $"Recommended Alexandria target: {RecommendedArchitecture}. AVX2/FMA is required for a reference-matching build. Older AMD CPUs avoid PEXT." : _engine == "caissa" ? $"Recommended {EngineName(_engine)} target: {_hardware.CppRecommended}. Only compatible targets are offered; older AMD CPUs avoid PEXT." : _engine == "igel" ? (_hardware.IgelChoices.Count == 0 ? "Igel NNUE requires AVX2 and POPCNT; this CPU cannot run it." : $"Recommended Igel target: {_hardware.IgelRecommended}. AVX2 is required; PEXT is avoided on older AMD CPUs.") : _engine == "reckless" ? $"Recommended Reckless target: {_hardware.RecklessRecommended}. AVX2 uses vector evaluation; x86-64 favors compatibility." : _engine == "obsidian" ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}. Only compatible targets are offered; PEXT is avoided on older AMD CPUs." : _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
     }
     private void Engine_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -212,6 +223,7 @@ public sealed partial class MainWindow : Window
         PythonPath = PythonPath.Text.Trim(), VisualStudio = VisualStudio.Text.Trim(),
         CudaRoot = CudaRoot.Text.Trim(), WeightsPath = WeightsPath.Text.Trim(),
         AutoArchitecture = AutoArchitecture.IsChecked == true,
+        ZigPath = ZigPath.Text.Trim(),
     };
     private static BuildOptions ReadOptions(string json) => Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(json);
     private void ShowProblem(string message) { Notice.Severity = InfoBarSeverity.Error; Notice.Title = "Build needs attention"; Notice.Message = message; Notice.IsOpen = true; }
@@ -227,6 +239,7 @@ public sealed partial class MainWindow : Window
     }
     private void Start_Click(object sender, RoutedEventArgs e)
     {
+        if (ToolSetupPane.SetupActive) { ShowProblem("Finish or cancel build-tool setup before compiling."); return; }
         try
         {
             var options = Options();
@@ -255,7 +268,9 @@ public sealed partial class MainWindow : Window
             var s = _core.Call(Request.Types.Operation.Status).Snapshot;
             _active = s.State is "Running" or "Cancelling";
             Model.Status = $"{s.State} — {s.Phase}" + (s.Message.Length > 0 ? $" · {s.Message}" : "");
-            Configuration.IsEnabled = CompileButton.IsEnabled = StartMenu.IsEnabled = PreviewButton.IsEnabled = PreviewMenu.IsEnabled = !_active;
+            Configuration.IsEnabled = CompileButton.IsEnabled = StartMenu.IsEnabled = PreviewButton.IsEnabled = PreviewMenu.IsEnabled = !_active && !ToolSetupPane.SetupActive;
+            ToolSetupPane.SetBuildActive(_active);
+            if (ToolSetupPane.SetupActive) Model.Status = $"Running - {ToolSetupPane.CurrentPhase}";
             CancelButton.IsEnabled = CancelMenu.IsEnabled = s.State == "Running";
             Progress.IsIndeterminate = _active; Progress.Visibility = _active ? Visibility.Visible : Visibility.Collapsed;
             if (_active || _lastState is "Running" or "Cancelling") _logPresenter.Update(s.LogTail);
@@ -279,6 +294,16 @@ public sealed partial class MainWindow : Window
     }
     private async void BrowseMsys_Click(object sender, RoutedEventArgs e) { try { if (await PickFolderAsync() is { } path) Model.MsysRoot = path; } catch (Exception error) { ShowProblem(error.Message); } }
     private async void BrowseOutput_Click(object sender, RoutedEventArgs e) { try { if (await PickFolderAsync() is { } path) Model.OutputRoot = path; } catch (Exception error) { ShowProblem(error.Message); } }
+    private async void BrowseZig_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new FileOpenPicker(); picker.FileTypeFilter.Add(".exe");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+            if (await picker.PickSingleFileAsync() is { } file) ZigPath.Text = file.Path;
+        }
+        catch (Exception error) { ShowProblem(error.Message); }
+    }
     private async void BrowseWeights_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -325,6 +350,7 @@ public sealed partial class MainWindow : Window
     private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine switch
     {
         "lc0" => "https://github.com/LeelaChessZero/lc0/releases",
+        "avalanche" => "https://github.com/SnowballSH/Avalanche/releases",
         "alexandria" => "https://github.com/PGG106/Alexandria/releases",
         "caissa" => "https://github.com/Witek902/Caissa/releases",
         "igel" => "https://github.com/vshcherbyna/igel/releases",
@@ -342,12 +368,14 @@ public sealed partial class MainWindow : Window
     {
         CompilePage.Visibility = area == "compile" ? Visibility.Visible : Visibility.Collapsed;
         DownloadPane.Visibility = area == "downloads" ? Visibility.Visible : Visibility.Collapsed;
+        if (area == "settings") ToolSetupPane.Configure(Options(), _verification ? Path.Combine(DataFolder, "tools") : "", _verification);
         SettingsPage.Visibility = area == "settings" ? Visibility.Visible : Visibility.Collapsed;
         var item = area switch { "downloads" => DownloadsItem, "settings" => Navigation.SettingsItem, _ => (object)CompileItem };
         if (!ReferenceEquals(Navigation.SelectedItem, item)) Navigation.SelectedItem = item;
     }
     private void ShowCompile_Click(object sender, RoutedEventArgs e) => ShowArea("compile");
     private void ShowDownloads_Click(object sender, RoutedEventArgs e) => ShowArea("downloads");
+    private void Tools_Click(object sender, RoutedEventArgs e) { ShowArea("settings"); DispatcherQueue.TryEnqueue(() => ToolSetupPane.StartBringIntoView()); }
     private void Settings_Click(object sender, RoutedEventArgs e) => ShowArea("settings");
     private void UpdateGitHubAccess() => GitHubAccessText.Text = _githubCredentials.Mode switch
     {
@@ -361,14 +389,14 @@ public sealed partial class MainWindow : Window
         XamlRoot = Root.XamlRoot,
         Title = "Build requirements",
         CloseButtonText = "Close",
-        Content = new TextBlock { Text = _engine is "caissa" or "alexandria" ? "Install MSYS2 UCRT64 GCC, make, git and curl. The selected engine uses a regular static GCC build with its source-selected network embedded. Its published network hash is checked. Parallel jobs apply. PGO is not included." : _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Tools are never installed by the app." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nTools are detected or selected; they are never installed by the app." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
+        Content = new TextBlock { Text = _engine == "avalanche" ? "Use Zig 0.17.0 and Git for Windows. Settings > Build tools can install Zig into this app’s tools folder after verifying its archive. No separate C compiler is needed. Avalanche includes its source-selected network and vendored translator. PGO is unavailable; every result must match bench.nodes with only System32 on PATH." : _engine is "caissa" or "alexandria" ? "Install MSYS2 UCRT64 GCC, make, git and curl. The selected engine uses a regular static GCC build with its source-selected network embedded. Its published network hash is checked. Parallel jobs apply. PGO is not included." : _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Use Settings > Build tools for explicit setup." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nUse Settings > Build tools to inspect or explicitly install the required tools." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
     }.ShowAsync();
     private async void About_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
         Title = "About Chess Engine Compiler",
         CloseButtonText = "Close",
-        Content = $"Chess Engine Compiler {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}\nPart of Jupiter · MIT license · Windows 11 x64\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish, Lc0, Berserk, Obsidian, Reckless and Igel are supported. Engines, networks and runtime libraries retain their upstream licenses."
+        Content = $"Chess Engine Compiler {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}\nPart of Jupiter · MIT license · Windows 11 x64\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nAlexandria, Avalanche, Berserk, Caissa, Igel, Lc0, Obsidian, Reckless and Stockfish are supported. Engines, networks and runtime libraries retain their upstream licenses."
     }.ShowAsync();
     private async void Exit_Click(object sender, RoutedEventArgs e) => await CloseAsync();
     private async Task CloseAsync()
@@ -380,15 +408,16 @@ public sealed partial class MainWindow : Window
             _authSession?.Cancel(); _githubDialog.Hide();
             if (pending is not null) await pending;
         }
-        if (_active || DownloadPane.DownloadActive)
+        if (_active || DownloadPane.DownloadActive || ToolSetupPane.SetupActive)
         {
-            var choice = await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Stop running work and close?", Content = "Closing will stop the running build or download. Build sources and logs remain. Incomplete download files are removed.", PrimaryButtonText = "Stop and close", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close }.ShowAsync();
+            var choice = await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Stop running work and close?", Content = "Closing will stop running builds, downloads or tool setup. Logs and source remain. Partial tool installations may remain; check their installers before retrying. Incomplete downloads are removed.", PrimaryButtonText = "Stop and close", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close }.ShowAsync();
             if (choice != ContentDialogResult.Primary) { _closing = false; return; }
         }
         SaveWindowBounds();
         _timer.Stop(); AppWindow.Hide();
         await _sourceSession.DisposeAsync();
         await DownloadPane.DisposeAsync();
+        await ToolSetupPane.DisposeAsync();
         await Task.Run(_core.Dispose);
         _allowClose = true; Close();
     }
