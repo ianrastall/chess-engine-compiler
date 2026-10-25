@@ -1,158 +1,220 @@
+<!--
+    Suite workspace (Jupiter style standard 1.0, sections 6 and 7): menu bar, navigation between the
+    Compile and Downloads work areas with Settings in the footer, and a status bar.
+-->
 <Window x:Class="Jupiter.ChessEngineCompiler.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:jupiter="using:Jupiter.UI"
     xmlns:views="using:Jupiter.ChessEngineCompiler.App.Views"
     xmlns:controls="using:Jupiter.ChessEngineCompiler.App.Controls">
     <Grid x:Name="Root" Background="{ThemeResource JupiterWindowBrush}" RequestedTheme="Dark">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <MenuBar>
             <MenuBarItem Title="File">
-                <MenuFlyoutItem Text="Export build scripts…" Click="Export_Click"/>
+                <MenuFlyoutItem Text="Export build scripts…" Click="Export_Click" ToolTipService.ToolTip="Export the selected settings, standalone CLI and PowerShell/batch scripts. These run the same build outside the GUI. The selected engine’s tools and, for Lc0, its network file must be available at the configured paths."/>
                 <MenuFlyoutSeparator/>
-                <MenuFlyoutItem Text="Exit" Click="Exit_Click"/>
+                <MenuFlyoutItem x:Name="SettingsMenu" Text="Settings" Click="Settings_Click" KeyboardAcceleratorTextOverride="Ctrl+,"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="Exit" Click="Exit_Click" KeyboardAcceleratorTextOverride="Alt+F4"/>
+            </MenuBarItem>
+            <MenuBarItem Title="Edit">
+                <MenuFlyoutItem Text="Copy log" Click="CopyLog_Click"/>
+            </MenuBarItem>
+            <MenuBarItem Title="View">
+                <MenuFlyoutItem Text="Compile" Click="ShowCompile_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Number1"/></MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Downloads" Click="ShowDownloads_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Number2"/></MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem x:Name="PowerShellLogMenu" Text="Watch log in PowerShell" Click="PowerShellLog_Click" IsEnabled="False"/>
             </MenuBarItem>
             <MenuBarItem Title="Build">
                 <MenuFlyoutItem x:Name="PreviewMenu" Text="Preview build" Click="Preview_Click"/>
-                <MenuFlyoutItem x:Name="StartMenu" Text="Compile Stockfish" Click="Start_Click"/>
+                <MenuFlyoutItem x:Name="StartMenu" Text="Compile Stockfish" Click="Start_Click">
+                    <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Key="F5"/></MenuFlyoutItem.KeyboardAccelerators>
+                </MenuFlyoutItem>
                 <MenuFlyoutItem x:Name="CancelMenu" Text="Cancel build" Click="Cancel_Click" IsEnabled="False"/>
+                <MenuFlyoutSeparator/>
                 <MenuFlyoutItem Text="Detect build tools" Click="Detect_Click"/>
             </MenuBarItem>
-            <MenuBarItem Title="View">
-                <MenuFlyoutItem Text="Copy log" Click="CopyLog_Click"/>
-                <MenuFlyoutItem x:Name="PowerShellLogMenu" Text="Watch log in PowerShell" Click="PowerShellLog_Click" IsEnabled="False"/>
-            </MenuBarItem>
-            <MenuBarItem Title="Settings"><MenuFlyoutItem Text="Appearance…" Click="Appearance_Click"/><MenuFlyoutItem Text="GitHub…" Click="GitHubSettings_Click"/></MenuBarItem>
             <MenuBarItem Title="Help">
                 <MenuFlyoutItem Text="Build requirements…" Click="Requirements_Click"/>
                 <MenuFlyoutItem Text="Selected engine releases" Click="Releases_Click"/>
                 <MenuFlyoutItem Text="Lc0 network downloads" Click="Networks_Click"/>
-                <MenuFlyoutItem Text="About Chess Engine Compiler…" Click="About_Click"/>
+                <MenuFlyoutSeparator/>
+                <MenuFlyoutItem Text="About Chess Engine Compiler" Click="About_Click"/>
             </MenuBarItem>
         </MenuBar>
-        <TabView x:Name="WorkflowTabs" Grid.Row="1" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent">
-        <TabViewItem Header="Compile" IsClosable="False">
-        <Grid Margin="24,12,24,16" ColumnSpacing="24">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="420"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <Grid RowSpacing="12">
-            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-            <ScrollViewer x:Name="OptionsScroll" VerticalScrollBarVisibility="Auto">
-                <StackPanel Spacing="16" Padding="0,0,12,12">
-                    <TextBlock Text="Chess Engine Compiler" Style="{StaticResource PageHeadingStyle}"/>
-                    <ContentControl x:Name="Configuration" HorizontalContentAlignment="Stretch"><StackPanel Spacing="16">
-                        <ComboBox x:Name="Engine" Header="Engine" HorizontalAlignment="Stretch" SelectedIndex="0" ToolTipService.ToolTip="Select the engine to compile. Each engine keeps its own source revision, toolchain and build settings.">
-                            <ComboBoxItem Content="Stockfish"/>
-                            <ComboBoxItem Content="Lc0"/>
-                        </ComboBox>
-                        <StackPanel Spacing="8">
-                            <ComboBox x:Name="SourceChannel" Header="Source selection" HorizontalAlignment="Stretch" SelectedIndex="2" SelectionChanged="SourceChannel_Changed" ToolTipService.ToolTip="Official releases use published release tags. Development versions are recent default-branch commits or prerelease tags from GitHub. Custom accepts any reachable upstream tag, branch or commit.">
-                                <ComboBoxItem Content="Official release"/><ComboBoxItem Content="Development version"/><ComboBoxItem Content="Custom tag, branch or commit"/>
-                            </ComboBox>
-                            <ComboBox x:Name="OfficialVersions" Header="Official releases" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="OfficialVersion_Changed" ToolTipService.ToolTip="Release tags loaded from this engine’s GitHub repository. Selecting one uses that source tag; this compiles source rather than downloading a pre-made executable."/>
-                            <ComboBox x:Name="DevelopmentVersions" Header="Development versions" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="DevelopmentVersion_Changed" ToolTipService.ToolTip="Recent commits on the repository’s default branch and published prereleases. Commit selections are pinned to an exact SHA for repeatable builds."/>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button x:Name="RefreshSources" Content="Refresh" Click="RefreshSources_Click" ToolTipService.ToolTip="Reload release and development metadata from GitHub. This does not download engine source or start a build."/>
-                                <Button x:Name="NewerSources" Content="Newer" IsEnabled="False" Click="NewerSources_Click" ToolTipService.ToolTip="Show the previous page of GitHub versions, up to 30 releases and commits per page."/>
-                                <Button x:Name="OlderSources" Content="Older" IsEnabled="False" Click="OlderSources_Click" ToolTipService.ToolTip="Show the next page of older GitHub versions."/>
-                                <Button x:Name="CancelSources" Content="Cancel" Visibility="Collapsed" Click="CancelSources_Click" ToolTipService.ToolTip="Cancel version-list loading. Compilation and downloads continue independently."/>
-                            </StackPanel>
-                            <TextBlock x:Name="SourceStatus" Text="GitHub versions load when the app opens. Custom refs remain available." Style="{StaticResource ExplanationStyle}"/>
-                        </StackPanel>
-                        <TextBox x:Name="SourceRef" Header="Source tag, branch or commit" Text="{x:Bind Model.SourceRef, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                            ToolTipService.ToolTip="Choose the official source revision to compile. A release tag such as sf_19 selects that release; master follows current development; a full commit hash selects an exact revision for repeatable builds."/>
-                        <TextBlock x:Name="SourceHint" Text="Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit." Style="{StaticResource ExplanationStyle}"/>
-                        <Grid x:Name="MsysOptions" ColumnSpacing="8">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBox x:Name="MsysRoot" Header="MSYS2 root folder" Text="{x:Bind Model.MsysRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="MSYS2 supplies the Unix-style build tools and UCRT64 GCC C++ compiler used by Stockfish on Windows. Select the installation root, for example C:\msys64, rather than its ucrt64 or bin subfolder. See Help > Build requirements for packages."/>
-                            <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseMsys_Click"/>
-                        </Grid>
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBox x:Name="OutputRoot" Header="Output folder" Text="{x:Bind Model.OutputRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTipService.ToolTip="Each build creates a new jobs subfolder containing its source, downloaded network, full log and verified result. Previous builds are retained. Allow space for the source, network and compiler output."/>
-                            <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseOutput_Click"/>
-                        </Grid>
-                        <StackPanel x:Name="StockfishOptions" Spacing="16">
-                        <TextBlock x:Name="HardwareSummary" TextWrapping="Wrap" Style="{StaticResource ExplanationStyle}"/>
-                        <CheckBox x:Name="AutoArchitecture" Content="Use recommended architecture" Checked="AutoArchitecture_Changed" Unchecked="AutoArchitecture_Changed" ToolTipService.ToolTip="Detect this CPU’s supported instructions and select the recommended Stockfish target automatically. Older AMD Zen CPUs avoid slow BMI2/PEXT. Turn this off to choose another compatible target. Recommendations are not a speed benchmark."/>
-                        <ComboBox x:Name="Architecture" Header="CPU architecture" HorizontalAlignment="Stretch" SelectedIndex="0"
-                            ToolTipService.ToolTip="Select which CPU instructions the engine may use. native lets Stockfish detect this computer. x86-64 favors compatibility; AVX2 and BMI2 require those CPU features. PGO and verification run the engine here, so incompatible choices are rejected.">
-                            <ComboBoxItem Content="native" ToolTipService.ToolTip="Use Stockfish’s detection for this computer. The result may not run on older CPUs."/>
-                            <ComboBoxItem Content="x86-64" ToolTipService.ToolTip="Use the baseline 64-bit x86 instruction set for broader compatibility, with less CPU-specific optimization."/>
-                            <ComboBoxItem Content="x86-64-avx2" ToolTipService.ToolTip="Use AVX2 vector instructions for neural-network evaluation. Requires an AVX2-capable CPU."/>
-                            <ComboBoxItem Content="x86-64-bmi2" ToolTipService.ToolTip="Use AVX2 plus BMI2 bit-manipulation instructions, including PEXT for move generation. Requires both features; BMI2 is not faster on every CPU."/>
-                        </ComboBox>
-                        <TextBlock x:Name="ArchitectureExplanation" Text="Only compatible targets are offered. native uses upstream detection; x86-64 favors compatibility." Style="{StaticResource ExplanationStyle}"/>
-                        <CheckBox x:Name="Pgo" Content="Profile-guided optimization (PGO)" IsChecked="True"
-                            ToolTipService.ToolTip="Build an instrumented engine, run Stockfish’s built-in benchmark to collect execution profiles, then rebuild using those profiles to guide optimization. This takes longer and uses this CPU during training, but can improve engine speed. Turn it off for a faster regular build."/>
-                        <CheckBox x:Name="Strip" Content="Strip executable symbols" IsChecked="True"
-                            ToolTipService.ToolTip="Remove debugging and symbol information from the finished executable to reduce its file size. This does not remove chess features. Turn it off if you need symbols for debugging or diagnosing crashes."/>
-                        </StackPanel>
-                        <StackPanel x:Name="Lc0Options" Spacing="16" Visibility="Collapsed">
-                            <ComboBox x:Name="Backend" Header="Neural-network backend" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="Backend_Changed"
-                                ToolTipService.ToolTip="The backend evaluates Lc0’s neural network. CUDA uses an NVIDIA GPU and needs a compatible driver and CUDA Toolkit. Eigen uses the CPU without a separate math library; it is much slower on large networks.">
-                                <ComboBoxItem Content="NVIDIA GPU (CUDA)" Tag="cuda-auto"/>
-                                <ComboBoxItem Content="CPU (Eigen)" Tag="eigen"/>
-                            </ComboBox>
-                            <TextBlock Text="The result is tested with your selected network. CUDA targets the GPU in this computer. CPU builds use Eigen; no OpenBLAS installation is required." Style="{StaticResource ExplanationStyle}"/>
-                            <TextBox x:Name="PythonPath" Header="Python executable (with Meson and Ninja)" ToolTipService.ToolTip="Full path to python.exe. Install Meson and Ninja into this Python environment with python -m pip install meson ninja. A virtual environment is supported. The compiler checks versions before building; it does not install tools."/>
-                            <TextBox x:Name="VisualStudio" Header="Visual Studio installation folder" ToolTipService.ToolTip="Installation root containing VC\Auxiliary\Build\vcvarsall.bat. Requires Desktop development with C++ and a Windows SDK. CUDA 12.x needs Visual Studio 2022; the compiler prefers that version when detecting tools."/>
-                            <TextBox x:Name="CudaRoot" Header="CUDA Toolkit root folder" ToolTipService.ToolTip="Toolkit folder containing bin\nvcc.exe and lib\x64\cublas.lib, for example C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9. cuDNN is not required. CUDA runtime DLLs are copied into each result; an NVIDIA driver is still needed."/>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBox x:Name="WeightsPath" Header="Network weights file" ToolTipService.ToolTip="Select an Lc0 .pb.gz or .pb neural network. The file is kept separate from lc0.exe, copied into the result and recorded by SHA-256. A real search verifies that it works with the chosen backend. Large networks need more RAM or GPU memory."/>
-                                <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseWeights_Click"/>
-                            </Grid>
-                            <HyperlinkButton Content="Download Lc0 networks" Click="Networks_Click" Padding="0"/>
-                        </StackPanel>
-                        <controls:NumericTextBox x:Name="Jobs" Header="Parallel jobs (1–256)" Minimum="1" Maximum="256" Value="8"
-                            ToolTipService.ToolTip="Maximum compiler tasks at once. More jobs can shorten compilation but use more CPU and RAM. Reduce this if the computer becomes unresponsive or runs out of memory. This does not set the engine’s playing threads."/>
-                    </StackPanel></ContentControl>
-                </StackPanel>
-            </ScrollViewer>
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-                <Button x:Name="CompileButton" Content="Compile Stockfish" Style="{StaticResource AccentButtonStyle}" Click="Start_Click"/>
-                    <Button x:Name="PreviewButton" Content="Preview build" Click="Preview_Click" ToolTipService.ToolTip="Validate the selected settings and show the build steps without downloading source or starting compilation."/>
-            </StackPanel>
-            </Grid>
-            <Grid Grid.Column="1" RowSpacing="12">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <Grid>
-                    <TextBlock Text="Build output" Style="{StaticResource SectionHeadingStyle}" Margin="0"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-                        <CheckBox x:Name="FollowOutput" Content="Follow output" IsChecked="True"
-                            ToolTipService.ToolTip="Keep the newest log lines visible. Scrolling up, dragging the scrollbar or selecting text pauses this view so updates do not interrupt reading or copying. Select this again to show the latest output; the build continues either way."/>
-                        <Button x:Name="CancelButton" Content="Cancel build" IsEnabled="False" Click="Cancel_Click" ToolTipService.ToolTip="Stop the running build process and its children. The job folder and saved log remain available; retrying creates a new job."/>
-                    </StackPanel>
-                </Grid>
-                <InfoBar Grid.Row="1" x:Name="Notice" IsOpen="False" IsClosable="True"/>
-                <Grid Grid.Row="2" RowSpacing="6">
-                    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <Border Background="{ThemeResource JupiterSurfaceBrush}" BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="1" CornerRadius="4">
-                        <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                            HorizontalScrollMode="Enabled" VerticalScrollMode="Enabled" IsTabStop="True" AutomationProperties.Name="Build log viewport">
-                            <TextBlock x:Name="Log" IsTextSelectionEnabled="True" FontFamily="Cascadia Mono,Consolas" FontSize="12" TextWrapping="NoWrap" Padding="12"
-                                Foreground="{ThemeResource JupiterPrimaryTextBrush}" AutomationProperties.Name="Build log and command preview"/>
+
+        <NavigationView x:Name="Navigation" Grid.Row="1" PaneDisplayMode="Auto" IsBackButtonVisible="Collapsed" IsSettingsVisible="True"
+                        OpenPaneLength="{StaticResource JupiterNavigationPaneWidth}" SelectionChanged="Navigation_SelectionChanged"
+                        BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="0,1,0,0">
+            <NavigationView.MenuItems>
+                <NavigationViewItem x:Name="CompileItem" Content="Compile" Tag="compile" IsSelected="True">
+                    <NavigationViewItem.Icon><FontIcon Glyph="&#xE90F;"/></NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="DownloadsItem" Content="Downloads" Tag="downloads">
+                    <NavigationViewItem.Icon><FontIcon Glyph="&#xE896;"/></NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Grid>
+                <!-- Compile -->
+                <Grid x:Name="CompilePage" Padding="24" ColumnSpacing="24">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="420"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Grid RowSpacing="16">
+                        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <ScrollViewer x:Name="OptionsScroll" VerticalScrollBarVisibility="Auto">
+                            <ContentControl x:Name="Configuration" HorizontalContentAlignment="Stretch" Padding="0,0,12,12"><StackPanel Spacing="16">
+                                <ComboBox x:Name="Engine" Header="Engine" HorizontalAlignment="Stretch" SelectedIndex="0" ToolTipService.ToolTip="Select the engine to compile. Each engine keeps its own source revision, toolchain and build settings.">
+                                    <ComboBoxItem Content="Stockfish"/>
+                                    <ComboBoxItem Content="Lc0"/>
+                                </ComboBox>
+                                <StackPanel Spacing="8">
+                                    <ComboBox x:Name="SourceChannel" Header="Source selection" HorizontalAlignment="Stretch" SelectedIndex="2" SelectionChanged="SourceChannel_Changed" ToolTipService.ToolTip="Official releases use published release tags. Development versions are recent default-branch commits or prerelease tags from GitHub. Custom accepts any reachable upstream tag, branch or commit.">
+                                        <ComboBoxItem Content="Official release"/><ComboBoxItem Content="Development version"/><ComboBoxItem Content="Custom tag, branch or commit"/>
+                                    </ComboBox>
+                                    <ComboBox x:Name="OfficialVersions" Header="Official releases" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="OfficialVersion_Changed" ToolTipService.ToolTip="Release tags loaded from this engine’s GitHub repository. Selecting one uses that source tag; this compiles source rather than downloading a pre-made executable."/>
+                                    <ComboBox x:Name="DevelopmentVersions" Header="Development versions" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="DevelopmentVersion_Changed" ToolTipService.ToolTip="Recent commits on the repository’s default branch and published prereleases. Commit selections are pinned to an exact SHA for repeatable builds."/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button x:Name="RefreshSources" Content="Refresh" Click="RefreshSources_Click" ToolTipService.ToolTip="Reload release and development metadata from GitHub. This does not download engine source or start a build."/>
+                                        <Button x:Name="NewerSources" Content="Newer" IsEnabled="False" Click="NewerSources_Click" ToolTipService.ToolTip="Show the previous page of GitHub versions, up to 30 releases and commits per page."/>
+                                        <Button x:Name="OlderSources" Content="Older" IsEnabled="False" Click="OlderSources_Click" ToolTipService.ToolTip="Show the next page of older GitHub versions."/>
+                                        <Button x:Name="CancelSources" Content="Cancel" Visibility="Collapsed" Click="CancelSources_Click" ToolTipService.ToolTip="Cancel version-list loading. Compilation and downloads continue independently."/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="SourceStatus" Text="GitHub versions load when the app opens. Custom refs remain available." Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                </StackPanel>
+                                <StackPanel Spacing="4">
+                                    <TextBox x:Name="SourceRef" Header="Source tag, branch or commit" Text="{x:Bind Model.SourceRef, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTipService.ToolTip="Choose the official source revision to compile. A release tag such as sf_19 selects that release; master follows current development; a full commit hash selects an exact revision for repeatable builds."/>
+                                    <TextBlock x:Name="SourceHint" Text="Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit." Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                </StackPanel>
+                                <Grid x:Name="MsysOptions" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="MsysRoot" Header="MSYS2 root folder" Text="{x:Bind Model.MsysRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTipService.ToolTip="MSYS2 supplies the Unix-style build tools and UCRT64 GCC C++ compiler used by Stockfish on Windows. Select the installation root, for example C:\msys64, rather than its ucrt64 or bin subfolder. See Help > Build requirements for packages."/>
+                                    <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseMsys_Click"/>
+                                </Grid>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="OutputRoot" Header="Output folder" Text="{x:Bind Model.OutputRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ToolTipService.ToolTip="Each build creates a new jobs subfolder containing its source, downloaded network, full log and verified result. Previous builds are retained. Allow space for the source, network and compiler output."/>
+                                    <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseOutput_Click"/>
+                                </Grid>
+                                <StackPanel x:Name="StockfishOptions" Spacing="16">
+                                    <TextBlock x:Name="HardwareSummary" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                    <CheckBox x:Name="AutoArchitecture" Content="Use recommended architecture" Checked="AutoArchitecture_Changed" Unchecked="AutoArchitecture_Changed" ToolTipService.ToolTip="Detect this CPU’s supported instructions and select the recommended Stockfish target automatically. Older AMD Zen CPUs avoid slow BMI2/PEXT. Turn this off to choose another compatible target. Recommendations are not a speed benchmark."/>
+                                    <StackPanel Spacing="4">
+                                        <ComboBox x:Name="Architecture" Header="CPU architecture" HorizontalAlignment="Stretch" SelectedIndex="0"
+                                            ToolTipService.ToolTip="Select which CPU instructions the engine may use. native lets Stockfish detect this computer. x86-64 favors compatibility; AVX2 and BMI2 require those CPU features. PGO and verification run the engine here, so incompatible choices are rejected.">
+                                            <ComboBoxItem Content="native" ToolTipService.ToolTip="Use Stockfish’s detection for this computer. The result may not run on older CPUs."/>
+                                            <ComboBoxItem Content="x86-64" ToolTipService.ToolTip="Use the baseline 64-bit x86 instruction set for broader compatibility, with less CPU-specific optimization."/>
+                                            <ComboBoxItem Content="x86-64-avx2" ToolTipService.ToolTip="Use AVX2 vector instructions for neural-network evaluation. Requires an AVX2-capable CPU."/>
+                                            <ComboBoxItem Content="x86-64-bmi2" ToolTipService.ToolTip="Use AVX2 plus BMI2 bit-manipulation instructions, including PEXT for move generation. Requires both features; BMI2 is not faster on every CPU."/>
+                                        </ComboBox>
+                                        <TextBlock x:Name="ArchitectureExplanation" Text="Only compatible targets are offered. native uses upstream detection; x86-64 favors compatibility." Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                    </StackPanel>
+                                    <CheckBox x:Name="Pgo" Content="Profile-guided optimization (PGO)" IsChecked="True"
+                                        ToolTipService.ToolTip="Build an instrumented engine, run Stockfish’s built-in benchmark to collect execution profiles, then rebuild using those profiles to guide optimization. This takes longer and uses this CPU during training, but can improve engine speed. Turn it off for a faster regular build."/>
+                                    <CheckBox x:Name="Strip" Content="Strip executable symbols" IsChecked="True"
+                                        ToolTipService.ToolTip="Remove debugging and symbol information from the finished executable to reduce its file size. This does not remove chess features. Turn it off if you need symbols for debugging or diagnosing crashes."/>
+                                </StackPanel>
+                                <StackPanel x:Name="Lc0Options" Spacing="16" Visibility="Collapsed">
+                                    <StackPanel Spacing="4">
+                                        <ComboBox x:Name="Backend" Header="Neural-network backend" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="Backend_Changed"
+                                            ToolTipService.ToolTip="The backend evaluates Lc0’s neural network. CUDA uses an NVIDIA GPU and needs a compatible driver and CUDA Toolkit. Eigen uses the CPU without a separate math library; it is much slower on large networks.">
+                                            <ComboBoxItem Content="NVIDIA GPU (CUDA)" Tag="cuda-auto"/>
+                                            <ComboBoxItem Content="CPU (Eigen)" Tag="eigen"/>
+                                        </ComboBox>
+                                        <TextBlock Text="The result is tested with your selected network. CUDA targets the GPU in this computer. CPU builds use Eigen; no OpenBLAS installation is required." Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="PythonPath" Header="Python executable (with Meson and Ninja)" ToolTipService.ToolTip="Full path to python.exe. Install Meson and Ninja into this Python environment with python -m pip install meson ninja. A virtual environment is supported. The compiler checks versions before building; it does not install tools."/>
+                                    <TextBox x:Name="VisualStudio" Header="Visual Studio installation folder" ToolTipService.ToolTip="Installation root containing VC\Auxiliary\Build\vcvarsall.bat. Requires Desktop development with C++ and a Windows SDK. CUDA 12.x needs Visual Studio 2022; the compiler prefers that version when detecting tools."/>
+                                    <TextBox x:Name="CudaRoot" Header="CUDA Toolkit root folder" ToolTipService.ToolTip="Toolkit folder containing bin\nvcc.exe and lib\x64\cublas.lib, for example C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9. cuDNN is not required. CUDA runtime DLLs are copied into each result; an NVIDIA driver is still needed."/>
+                                    <StackPanel Spacing="4">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <TextBox x:Name="WeightsPath" Header="Network weights file" ToolTipService.ToolTip="Select an Lc0 .pb.gz or .pb neural network. The file is kept separate from lc0.exe, copied into the result and recorded by SHA-256. A real search verifies that it works with the chosen backend. Large networks need more RAM or GPU memory."/>
+                                            <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseWeights_Click"/>
+                                        </Grid>
+                                        <HyperlinkButton Content="Download Lc0 networks" Click="Networks_Click" Padding="0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <controls:NumericTextBox x:Name="Jobs" Header="Parallel jobs (1–256)" Minimum="1" Maximum="256" Value="8" Width="{StaticResource JupiterShortFieldWidth}" HorizontalAlignment="Left"
+                                    ToolTipService.ToolTip="Maximum compiler tasks at once. More jobs can shorten compilation but use more CPU and RAM. Reduce this if the computer becomes unresponsive or runs out of memory. This does not set the engine’s playing threads."/>
+                            </StackPanel></ContentControl>
                         </ScrollViewer>
-                    </Border>
-                    <TextBlock Grid.Row="1" x:Name="LogViewStatus" Text="Latest 300 lines; the full build log is saved to disk." Style="{StaticResource ExplanationStyle}"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="CompileButton" Content="Compile Stockfish" Style="{StaticResource AccentButtonStyle}" Click="Start_Click"/>
+                            <Button x:Name="PreviewButton" Content="Preview build" Click="Preview_Click" ToolTipService.ToolTip="Validate the selected settings and show the build steps without downloading source or starting compilation."/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Column="1" RowSpacing="12">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Grid>
+                            <TextBlock Text="Build output" Style="{StaticResource JupiterSectionHeadingTextStyle}" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+                                <CheckBox x:Name="FollowOutput" Content="Follow output" IsChecked="True"
+                                    ToolTipService.ToolTip="Keep the newest log lines visible. Scrolling up, dragging the scrollbar or selecting text pauses this view so updates do not interrupt reading or copying. Select this again to show the latest output; the build continues either way."/>
+                                <Button x:Name="CancelButton" Content="Cancel build" IsEnabled="False" Click="Cancel_Click" ToolTipService.ToolTip="Stop the running build process and its children. The job folder and saved log remain available; retrying creates a new job."/>
+                            </StackPanel>
+                        </Grid>
+                        <InfoBar Grid.Row="1" x:Name="Notice" IsOpen="False" IsClosable="True"/>
+                        <Grid Grid.Row="2" RowSpacing="4">
+                            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Border Background="{ThemeResource JupiterSurfaceBrush}" BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="1" CornerRadius="{StaticResource ControlCornerRadius}">
+                                <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                    HorizontalScrollMode="Enabled" VerticalScrollMode="Enabled" IsTabStop="True" AutomationProperties.Name="Build log viewport">
+                                    <TextBlock x:Name="Log" IsTextSelectionEnabled="True" Style="{StaticResource JupiterMonoCaptionTextStyle}" TextWrapping="NoWrap" Padding="12"
+                                        Foreground="{ThemeResource JupiterPrimaryTextBrush}" AutomationProperties.Name="Build log and command preview"/>
+                                </ScrollViewer>
+                            </Border>
+                            <TextBlock Grid.Row="1" x:Name="LogViewStatus" Text="Latest 300 lines; the full build log is saved to disk." Style="{StaticResource JupiterCaptionTextStyle}"/>
+                        </Grid>
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="ResultButton" Content="Open result folder" IsEnabled="False" Click="Result_Click"/>
+                            <Button x:Name="LogButton" Content="Open saved log" IsEnabled="False" Click="Log_Click"/>
+                            <Button Content="Copy log" Click="CopyLog_Click" ToolTipService.ToolTip="Copy the full saved build log, including lines outside the live tail. Before a build, copy the current preview. Ordinary text selection still supports copying a smaller portion."/>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="ResultButton" Content="Open result folder" IsEnabled="False" Click="Result_Click"/>
-                    <Button x:Name="LogButton" Content="Open saved log" IsEnabled="False" Click="Log_Click"/>
-                    <Button Content="Copy log" Click="CopyLog_Click" ToolTipService.ToolTip="Copy the full saved build log, including lines outside the live tail. Before a build, copy the current preview. Ordinary text selection still supports copying a smaller portion."/>
-                    <Button Content="Export build scripts…" Click="Export_Click" ToolTipService.ToolTip="Export the selected settings, standalone CLI and PowerShell/batch scripts. These run the same build outside the GUI. The selected engine’s tools and, for Lc0, its network file must be available at the configured paths."/>
-                </StackPanel>
+
+                <!-- Downloads -->
+                <views:DownloadsView x:Name="DownloadPane" Visibility="Collapsed"/>
+
+                <!-- Settings (standard section 11, as a navigation page) -->
+                <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Padding="24" Spacing="32" MaxWidth="{StaticResource JupiterContentMaxWidth}" HorizontalAlignment="Left">
+                        <StackPanel Spacing="12">
+                            <TextBlock Style="{StaticResource JupiterSectionHeadingTextStyle}" Text="Appearance"/>
+                            <jupiter:AccentColorSetting x:Name="AccentSetting"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <TextBlock Style="{StaticResource JupiterSectionHeadingTextStyle}" Text="GitHub"/>
+                            <StackPanel Spacing="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Style="{StaticResource JupiterFieldLabelTextStyle}" Text="Access"/>
+                                    <TextBlock x:Name="GitHubAccessText" Style="{StaticResource JupiterBodyTextStyle}"/>
+                                    <TextBlock Style="{StaticResource JupiterCaptionTextStyle}" Text="Authenticated access raises API limits and enables workflow artifact downloads. Tokens are kept in Windows Credential Manager."/>
+                                </StackPanel>
+                                <Button Content="Manage GitHub access…" Click="GitHubSettings_Click" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
+        </NavigationView>
+
+        <!-- Status bar (standard section 6) -->
+        <Grid Grid.Row="2" MinHeight="{StaticResource JupiterStatusBarHeight}" Padding="{StaticResource JupiterStatusBarPadding}" ColumnSpacing="16"
+              Background="{ThemeResource JupiterSurfaceBrush}" BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="0,1,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock Text="{x:Bind Model.Status, Mode=OneWay}" Style="{StaticResource JupiterCaptionTextStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            <ProgressBar x:Name="Progress" Grid.Column="1" Width="140" IsIndeterminate="False" Visibility="Collapsed" VerticalAlignment="Center"/>
         </Grid>
-        </TabViewItem>
-        <TabViewItem Header="Downloads" IsClosable="False"><views:DownloadsView x:Name="DownloadPane"/></TabViewItem>
-        </TabView>
-        <Border Grid.Row="2" Background="{ThemeResource JupiterSurfaceBrush}" Padding="24,12">
-            <StackPanel Spacing="6">
-                <TextBlock Text="{x:Bind Model.Status, Mode=OneWay}" TextWrapping="Wrap"/>
-                <ProgressBar x:Name="Progress" IsIndeterminate="False" Visibility="Collapsed"/>
-            </StackPanel>
-        </Border>
     </Grid>
 </Window>

@@ -2,7 +2,7 @@
 
 ## Compile source
 
-The Compile tab loads official releases and development versions separately for the selected engine. Official releases exclude GitHub prereleases. Development versions combine recent commits from the repository's default branch and published prereleases, sorted newest first. Commit selection pins an exact SHA; release/prerelease selection uses its tag. **Custom tag, branch or commit** accepts refs such as `master` or a specific commit. Refresh and Newer/Older fetch pages of metadata; they do not compile or download source. Failed metadata requests leave custom refs available.
+The Compile work area loads official releases and development versions separately for the selected engine. Official releases exclude GitHub prereleases. Development versions combine recent commits from the repository's default branch and published prereleases, sorted newest first. Commit selection pins an exact SHA; release/prerelease selection uses its tag. **Custom tag, branch or commit** accepts refs such as `master` or a specific commit. Refresh and Newer/Older fetch pages of metadata; they do not compile or download source. Failed metadata requests leave custom refs available.
 
 The supported repositories are `official-stockfish/Stockfish` and `LeelaChessZero/lc0`. The adapters are verified against current releases and development source; historical upstream releases can require older compilers or build systems outside the current adapters.
 
@@ -10,7 +10,7 @@ CPU detection reads CPUID and Rust's OS-aware feature checks. Only compatible St
 
 ## Connect an account
 
-Open **Settings > GitHub**:
+Open **Settings** (File > Settings, Ctrl+, or the navigation footer) and select **Manage GitHub access…** under GitHub:
 
 A completed account check displays **Connection test successful**, followed by the account and sign-in method. It confirms that settings are saved and the dialog can be closed. Cancelled and failed checks are explicitly labelled.
 
@@ -25,7 +25,7 @@ Tokens/accounts must have access to the requested repositories and API resources
 
 ## Download existing files
 
-The **Downloads** tab has its own engine selection, destination, metadata loader and download worker. It can operate alongside compilation. **Release assets** lists all files attached to the chosen official release or prerelease, including binaries, checksums or source archives. Choose the file matching your operating system and CPU/GPU. **Workflow artifacts** requires an authenticated account/token and displays branch/commit context, creation/expiry and size. Expired artifacts cannot be downloaded. Newer/Older page through the available files; release paging is separate.
+The **Downloads** work area has its own engine selection, destination, metadata loader and download worker. It can operate alongside compilation. **Release assets** lists all files attached to the chosen official release or prerelease, including binaries, checksums or source archives. Choose the file matching your operating system and CPU/GPU. **Workflow artifacts** requires an authenticated account/token and displays branch/commit context, creation/expiry and size. Expired artifacts cannot be downloaded. Newer/Older page through the available files; release paging is separate.
 
 Each download creates a new uniquely named destination subfolder. A temporary file is renamed only after the transfer is complete and any published SHA-256 matches. `download.json` records repository, asset/artifact ID, stable API source URL, bytes and computed/published digests. Signed redirect URLs and credentials are never recorded. Cancelling removes the incomplete temporary file and preserves existing downloads. The application does not extract, install or execute downloaded files.
 

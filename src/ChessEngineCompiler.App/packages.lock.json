@@ -151,6 +151,13 @@
           "Google.Protobuf": "[3.36.2, )"
         }
       },
+      "jupiter.ui": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Windows.SDK.BuildTools": "[10.0.28000.2705, )",
+          "Microsoft.WindowsAppSDK": "[2.5.1, )"
+        }
+      },
       "Google.Protobuf": {
         "type": "CentralTransitive",
         "requested": "[3.36.2, )",

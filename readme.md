@@ -6,6 +6,8 @@ Select an official Stockfish tag, branch or commit, choose build options and com
 
 ## Install and run
 
+Follows Jupiter style standard 1.0 through the shared [Jupiter.UI](../jupiter-ui/readme.md) library, which must sit beside this repository (`D:\jupiter\jupiter-ui`) to build. Departures are in [docs/jupiter-exceptions.md](docs/jupiter-exceptions.md).
+
 Run the `ChessEngineCompiler-<version>-win-x64-setup.exe` release installer. It installs for your Windows account without an administrator prompt. Open **Start > Chess Engine Compiler**, or search Start for **Chess Engine Compiler**. .NET, Windows App SDK and MSVC runtimes are included. Uninstall through Windows Settings > Apps > Installed apps. Running a newer installer upgrades the same application; settings and engine-build outputs are preserved on upgrade and uninstall. Close the app before upgrading.
 
 A portable zip is supplied as an additional option. Extract it and keep its files together. The installer is the standard Jupiter delivery route.
@@ -28,13 +30,13 @@ Select **Lc0** to show its backend, Python/Meson, Visual Studio, CUDA and networ
 
 ## Versions, architecture and GitHub
 
-The **Compile** tab preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
+The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
 
 Stockfish detects this CPU and offers only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
 
-**Settings > GitHub** supports anonymous access, a masked personal access token saved in Windows Credential Manager, or an existing GitHub CLI account. **Sign in through browser** uses GitHub CLI's device-code flow. Tokens never enter build JSON, exported scripts or logs. Authentication raises API limits and enables authorized workflow downloads. See [GitHub access and downloads](docs/github.md).
+**Settings > GitHub > Manage GitHub access** supports anonymous access, a masked personal access token saved in Windows Credential Manager, or an existing GitHub CLI account. **Sign in through browser** uses GitHub CLI's device-code flow. Tokens never enter build JSON, exported scripts or logs. Authentication raises API limits and enables authorized workflow downloads. See [GitHub access and downloads](docs/github.md).
 
-The separate **Downloads** tab lists release assets and authenticated workflow artifacts for either engine. Downloads can run alongside compilation. Each download gets a new folder and SHA-256/provenance record; published digests are verified when provided. Archives are not automatically extracted or executed. Expired artifacts are unavailable.
+The separate **Downloads** work area lists release assets and authenticated workflow artifacts for either engine. Downloads can run alongside compilation. Each download gets a new folder and SHA-256/provenance record; published digests are verified when provided. Archives are not automatically extracted or executed. Expired artifacts are unavailable.
 
 **Copy log** copies the full saved log or the current preview. Command strings, warnings and errors are highlighted in the selectable GUI log. Build tools prefer PowerShell 7 when installed, with direct execution as the fallback; interactive UCI input stays direct. **View > Watch log in PowerShell** opens a separate colour-coded live viewer. PowerShell is not required by the installer.
 

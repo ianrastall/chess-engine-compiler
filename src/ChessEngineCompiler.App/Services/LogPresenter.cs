@@ -91,10 +91,12 @@ public sealed class LogPresenter
             // Runs retain ordinary text selection/copy. Color never alters the saved log.
             _text.Inlines.Clear();
             var contrast = new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast;
+            // Command and literal colors are syntax highlighting, a content palette; warnings and errors
+            // are status and use the Jupiter status colors (style standard 3.1 and 3.4).
             var command = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 124, 193, 229));
             var literal = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 199, 145));
-            var warning = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 224, 189, 112));
-            var error = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 244, 145, 145));
+            var warning = Jupiter.UI.JupiterTheme.Brush("JupiterWarningBrush");
+            var error = Jupiter.UI.JupiterTheme.Brush("JupiterErrorBrush");
             foreach (var line in Regex.Split(value, "(?<=\\n)"))
             {
                 if (!contrast && line.StartsWith("$ ", StringComparison.Ordinal))

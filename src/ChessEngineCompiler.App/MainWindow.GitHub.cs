@@ -132,6 +132,7 @@ public sealed partial class MainWindow
         try { await _githubDialogTask; }
         finally { _githubDialog = null; _githubDialogTask = null; _authSession = null; }
         DownloadPane.RefreshAuthentication();
+        UpdateGitHubAccess();
         if (!_verification && !_closing) _ = LoadSourcesAsync(_sourcePage);
     }
     private void PowerShellLog_Click(object sender, RoutedEventArgs e)

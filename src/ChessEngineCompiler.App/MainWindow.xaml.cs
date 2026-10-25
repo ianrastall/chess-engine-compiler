@@ -3,6 +3,7 @@ using System.Text.Json;
 using Jupiter.ChessEngineCompiler.App.Services;
 using Jupiter.ChessEngineCompiler.Interop;
 using Jupiter.ChessEngineCompiler.Messages;
+using Jupiter.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -40,8 +41,11 @@ public sealed partial class MainWindow : Window
         Directory.CreateDirectory(DataFolder);
         _preferences = ShellPreferences.Load(Path.Combine(DataFolder, "ui.json"));
         _githubCredentials = new GitHubCredentials(DataFolder, _preferences);
-        _accent = new AccentService(_preferences, DispatcherQueue);
+        _accent = new AccentService(_preferences);
         _accent.Attach(Root);
+        AccentSetting.Service = _accent;
+        SettingsMenu.KeyboardAccelerators.Add(new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = (Windows.System.VirtualKey)188, Modifiers = Windows.System.VirtualKeyModifiers.Control });
+        UpdateGitHubAccess();
         _hardware = _core.Call(Request.Types.Operation.Hardware).Hardware;
         Architecture.Items.Clear();
         foreach (var choice in _hardware.Choices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
@@ -71,6 +75,7 @@ public sealed partial class MainWindow : Window
     }
     public void ConfigureWindow()
     {
+        // Standard 6.1: a workspace opens at 1200 × 800 with a minimum of 800 × 560.
         var scale = WindowDpi.GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
         var savedBounds = new Windows.Graphics.RectInt32(_preferences.WindowX, _preferences.WindowY, _preferences.WindowWidth, _preferences.WindowHeight);
         var monitor = _preferences.WindowX != int.MinValue && savedBounds.Width > 0 && savedBounds.Height > 0
@@ -79,11 +84,11 @@ public sealed partial class MainWindow : Window
         var area = monitor.WorkArea;
         if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
-            presenter.PreferredMinimumWidth = Math.Min((int)(1050 * scale), area.Width);
-            presenter.PreferredMinimumHeight = Math.Min((int)(650 * scale), area.Height);
+            presenter.PreferredMinimumWidth = Math.Min((int)(800 * scale), area.Width);
+            presenter.PreferredMinimumHeight = Math.Min((int)(560 * scale), area.Height);
         }
-        var width = Math.Min(Math.Max(_preferences.WindowWidth > 0 ? _preferences.WindowWidth : (int)(1200 * scale), (int)(1050 * scale)), area.Width);
-        var height = Math.Min(Math.Max(_preferences.WindowHeight > 0 ? _preferences.WindowHeight : (int)(900 * scale), (int)(650 * scale)), area.Height);
+        var width = Math.Min(Math.Max(_preferences.WindowWidth > 0 ? _preferences.WindowWidth : (int)(1200 * scale), (int)(800 * scale)), area.Width);
+        var height = Math.Min(Math.Max(_preferences.WindowHeight > 0 ? _preferences.WindowHeight : (int)(800 * scale), (int)(560 * scale)), area.Height);
         var x = _preferences.WindowX == int.MinValue ? area.X + (area.Width - width) / 2 : Math.Clamp(_preferences.WindowX, area.X, area.X + area.Width - width);
         var y = _preferences.WindowY == int.MinValue ? area.Y + (area.Height - height) / 2 : Math.Clamp(_preferences.WindowY, area.Y, area.Y + area.Height - height);
         AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, width, height));
@@ -275,20 +280,26 @@ public sealed partial class MainWindow : Window
     private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine == "lc0" ? "https://github.com/LeelaChessZero/lc0/releases" : "https://github.com/official-stockfish/Stockfish/releases");
     private void Networks_Click(object sender, RoutedEventArgs e) => OpenPath("https://lczero.org/play/networks/bestnets/");
     private void Log_Click(object sender, RoutedEventArgs e) { if (File.Exists(_logPath)) OpenPath(_logPath); }
-    private async void Appearance_Click(object sender, RoutedEventArgs e)
+    // Navigation (standard section 7, suite workspace): Compile, Downloads and Settings.
+    private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args) =>
+        ShowArea(args.IsSettingsSelected ? "settings" : (args.SelectedItemContainer?.Tag as string) ?? "compile");
+    private void ShowArea(string area)
     {
-        var useWindows = new RadioButton { Content = "Use Windows accent color", IsChecked = !_accent.UseCustomAccent };
-        var custom = new RadioButton { Content = "Custom color", IsChecked = _accent.UseCustomAccent };
-        var picker = new ColorPicker { Color = _accent.CustomColor, Width = 280, IsAlphaEnabled = false, IsAlphaSliderVisible = false, IsAlphaTextInputVisible = false, IsMoreButtonVisible = false, IsColorSliderVisible = false, IsColorChannelTextInputVisible = false };
-        picker.IsEnabled = custom.IsChecked == true;
-        useWindows.Checked += (_, _) => { _accent.UseWindows(); picker.IsEnabled = false; };
-        custom.Checked += (_, _) => { picker.IsEnabled = true; _accent.UseCustom(picker.Color); };
-        picker.ColorChanged += (_, _) => { if (custom.IsChecked == true) _accent.UseCustom(picker.Color); };
-        var reset = new Button { Content = "Reset to Windows accent" };
-        reset.Click += (_, _) => { useWindows.IsChecked = true; _accent.UseWindows(); };
-        var panel = new StackPanel { Spacing = 8 }; panel.Children.Add(new TextBlock { Text = "Accent color" }); panel.Children.Add(useWindows); panel.Children.Add(custom); panel.Children.Add(picker); panel.Children.Add(reset);
-        await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Appearance", Content = panel, CloseButtonText = "Close" }.ShowAsync();
+        CompilePage.Visibility = area == "compile" ? Visibility.Visible : Visibility.Collapsed;
+        DownloadPane.Visibility = area == "downloads" ? Visibility.Visible : Visibility.Collapsed;
+        SettingsPage.Visibility = area == "settings" ? Visibility.Visible : Visibility.Collapsed;
+        var item = area switch { "downloads" => DownloadsItem, "settings" => Navigation.SettingsItem, _ => (object)CompileItem };
+        if (!ReferenceEquals(Navigation.SelectedItem, item)) Navigation.SelectedItem = item;
     }
+    private void ShowCompile_Click(object sender, RoutedEventArgs e) => ShowArea("compile");
+    private void ShowDownloads_Click(object sender, RoutedEventArgs e) => ShowArea("downloads");
+    private void Settings_Click(object sender, RoutedEventArgs e) => ShowArea("settings");
+    private void UpdateGitHubAccess() => GitHubAccessText.Text = _githubCredentials.Mode switch
+    {
+        "token" => "Personal access token",
+        "cli" => "GitHub CLI account",
+        _ => "Anonymous, without signing in",
+    };
     private async void Requirements_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
@@ -299,9 +310,9 @@ public sealed partial class MainWindow : Window
     private async void About_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
-        Title = "Chess Engine Compiler",
+        Title = "About Chess Engine Compiler",
         CloseButtonText = "Close",
-        Content = $"Jupiter · Chess Engine Compiler\nVersion {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)} · Windows 11 x64\nMIT license\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish and Lc0 are supported. Engines, networks and runtime libraries retain their upstream licenses."
+        Content = $"Chess Engine Compiler {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}\nPart of Jupiter · MIT license · Windows 11 x64\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish and Lc0 are supported. Engines, networks and runtime libraries retain their upstream licenses."
     }.ShowAsync();
     private async void Exit_Click(object sender, RoutedEventArgs e) => await CloseAsync();
     private async Task CloseAsync()
@@ -315,7 +326,7 @@ public sealed partial class MainWindow : Window
         }
         if (_active || DownloadPane.DownloadActive)
         {
-            var choice = await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Cancel running work?", Content = "Closing will stop the running build or download. Build sources and logs remain. Incomplete download files are removed.", PrimaryButtonText = "Cancel work and close", CloseButtonText = "Keep working", DefaultButton = ContentDialogButton.Close }.ShowAsync();
+            var choice = await new ContentDialog { XamlRoot = Root.XamlRoot, Title = "Stop running work and close?", Content = "Closing will stop the running build or download. Build sources and logs remain. Incomplete download files are removed.", PrimaryButtonText = "Stop and close", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Close }.ShowAsync();
             if (choice != ContentDialogResult.Primary) { _closing = false; return; }
         }
         SaveWindowBounds();

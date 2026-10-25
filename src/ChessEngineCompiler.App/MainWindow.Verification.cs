@@ -57,11 +57,15 @@ public sealed partial class MainWindow
         OptionsScroll.ChangeView(null, 0, null, true);
         Root.UpdateLayout(); await Task.Delay(150);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "stockfish.png"));
-        WorkflowTabs.SelectedIndex = 1;
+        ShowArea("downloads");
         DownloadPane.VerifyControls();
         Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "downloads.png"));
-        File.WriteAllText(report, "PASS: real WinUI engine switching, separate option retention, automatic/manual architecture, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls and rendered layouts. No build or shared preference mutation.");
+        ShowArea("settings");
+        Require(SettingsPage.Visibility == Visibility.Visible && AccentSetting.Service is not null, "Settings page or its shared accent control is not connected.");
+        Root.UpdateLayout(); await Task.Delay(200);
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "settings.png"));
+        File.WriteAllText(report, "PASS: real WinUI engine switching, separate option retention, automatic/manual architecture, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

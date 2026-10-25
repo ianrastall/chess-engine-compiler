@@ -4,13 +4,16 @@ using System.Text.Json.Serialization;
 namespace Jupiter.ChessEngineCompiler.App.Services;
 
 /// <summary>Presentation preferences owned by the shell (ui.json beside the core's settings).</summary>
-public sealed class ShellPreferences
+public sealed partial class ShellPreferences
 {
     public const int CurrentVersion = 1;
+    // Versions before style standard 1.0 stored this brass color as the custom accent's default.
+    private const string RetiredAccentDefault = "#C8A15A";
 
     public int Version { get; set; } = CurrentVersion;
     public bool UseCustomAccent { get; set; }
-    public string CustomAccent { get; set; } = "#C8A15A";
+    /// <summary>#RRGGBB, or null until a custom color is chosen (it then starts from the Windows accent).</summary>
+    public string? CustomAccent { get; set; }
     public int WindowX { get; set; } = int.MinValue;
     public int WindowY { get; set; } = int.MinValue;
     public int WindowWidth { get; set; }
@@ -41,6 +44,10 @@ public sealed class ShellPreferences
             prefs = null;
         }
         prefs ??= new ShellPreferences();
+        if (!prefs.UseCustomAccent && prefs.CustomAccent == RetiredAccentDefault)
+        {
+            prefs.CustomAccent = null;
+        }
         prefs.Path = path;
         return prefs;
     }

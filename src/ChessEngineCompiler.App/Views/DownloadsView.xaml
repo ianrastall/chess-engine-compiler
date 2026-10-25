@@ -1,23 +1,28 @@
+<!-- Downloads work area (Jupiter style standard 1.0): content padding 24, fields 16 apart, captions 4 below. -->
 <UserControl x:Class="Jupiter.ChessEngineCompiler.App.Views.DownloadsView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Margin="24,12,24,16" RowSpacing="12">
+    <Grid Padding="24" RowSpacing="16">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Spacing="8">
-            <TextBlock Text="GitHub downloads" Style="{StaticResource PageHeadingStyle}"/>
-            <TextBlock Text="Download existing release assets or workflow archives. Downloads run separately from compilation and do not install or execute files." Style="{StaticResource ExplanationStyle}"/>
-            <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="Download existing release assets or workflow archives. Downloads run separately from compilation and do not install or execute files." Style="{StaticResource JupiterCaptionTextStyle}"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
                 <ComboBox x:Name="DownloadEngine" Header="Engine" SelectedIndex="0" SelectionChanged="Engine_Changed" Width="200"><ComboBoxItem Content="Stockfish"/><ComboBoxItem Content="Lc0"/></ComboBox>
                 <Button x:Name="CatalogRefresh" Content="Refresh releases" VerticalAlignment="Bottom" Click="CatalogRefresh_Click"/>
                 <Button x:Name="CatalogNewer" Content="Newer releases" VerticalAlignment="Bottom" IsEnabled="False" Click="CatalogNewer_Click"/>
                 <Button x:Name="CatalogOlder" Content="Older releases" VerticalAlignment="Bottom" IsEnabled="False" Click="CatalogOlder_Click"/>
             </StackPanel>
         </StackPanel>
-        <Pivot Grid.Row="1" x:Name="Kind" SelectionChanged="Kind_Changed"><PivotItem Header="Release assets"/><PivotItem Header="Workflow artifacts"/></Pivot>
+        <RadioButtons Grid.Row="1" x:Name="Kind" Header="Show" MaxColumns="2" SelectedIndex="0" SelectionChanged="Kind_Changed">
+            <x:String>Release assets</x:String>
+            <x:String>Workflow artifacts</x:String>
+        </RadioButtons>
         <StackPanel Grid.Row="2" Spacing="8">
-            <TextBlock x:Name="AuthenticationStatus" Style="{StaticResource ExplanationStyle}"/>
-            <ComboBox x:Name="Release" Header="GitHub release" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="Release_Changed" ToolTipService.ToolTip="Includes official releases and prereleases published by the engine project. All attached assets are listed so you can choose a binary for your operating system and hardware."/>
-            <TextBlock x:Name="CatalogStatus" Style="{StaticResource ExplanationStyle}"/>
+            <TextBlock x:Name="AuthenticationStatus" Style="{StaticResource JupiterCaptionTextStyle}"/>
+            <StackPanel Spacing="4">
+                <ComboBox x:Name="Release" Header="GitHub release" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="Release_Changed" ToolTipService.ToolTip="Includes official releases and prereleases published by the engine project. All attached assets are listed so you can choose a binary for your operating system and hardware."/>
+                <TextBlock x:Name="CatalogStatus" Style="{StaticResource JupiterCaptionTextStyle}"/>
+            </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button x:Name="RefreshItems" Content="Refresh list" Click="RefreshItems_Click"/>
                 <Button x:Name="Previous" Content="Newer" IsEnabled="False" Click="Previous_Click"/>
@@ -26,11 +31,12 @@
             </StackPanel>
         </StackPanel>
         <InfoBar Grid.Row="3" x:Name="Notice" IsOpen="False" IsClosable="True"/>
-        <ListView Grid.Row="4" x:Name="Files" SelectionMode="Single" SelectionChanged="Files_Changed" AutomationProperties.Name="Available GitHub downloads">
-            <ListView.ItemTemplate><DataTemplate><StackPanel Spacing="3" Padding="8">
-                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                <TextBlock Text="{Binding SizeLabel}" Style="{StaticResource ExplanationStyle}"/>
-                <TextBlock Text="{Binding Details}" Style="{StaticResource ExplanationStyle}"/>
+        <ListView Grid.Row="4" x:Name="Files" SelectionMode="Single" SelectionChanged="Files_Changed" AutomationProperties.Name="Available GitHub downloads"
+                  BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="0,1,0,1">
+            <ListView.ItemTemplate><DataTemplate><StackPanel Spacing="4" Padding="0,8,0,8">
+                <TextBlock Text="{Binding Name}" Style="{StaticResource JupiterBodyStrongTextStyle}"/>
+                <TextBlock Text="{Binding SizeLabel}" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                <TextBlock Text="{Binding Details}" Style="{StaticResource JupiterCaptionTextStyle}"/>
             </StackPanel></DataTemplate></ListView.ItemTemplate>
         </ListView>
         <Grid Grid.Row="5" ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -43,7 +49,7 @@
                 <Button x:Name="CancelDownload" Content="Cancel download" IsEnabled="False" Click="CancelDownload_Click"/>
                 <Button x:Name="OpenFolder" Content="Open download folder" IsEnabled="False" Click="OpenFolder_Click"/>
             </StackPanel>
-            <TextBlock x:Name="DownloadStatus" Text="No download running." Style="{StaticResource ExplanationStyle}"/>
+            <TextBlock x:Name="DownloadStatus" Text="No download running." Style="{StaticResource JupiterCaptionTextStyle}"/>
             <ProgressBar x:Name="Progress" Visibility="Collapsed"/>
         </StackPanel>
     </Grid>
