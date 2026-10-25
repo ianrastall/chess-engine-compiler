@@ -1,0 +1,5 @@
+{
+  "engine": "alexandria", "sourceRef": "v9.1.0", "msysRoot": "C:/msys64",
+  "outputRoot": "D:/Chess engine builds", "architecture": "avx2",
+  "autoArchitecture": true, "jobs": 4, "pgo": false, "strip": true
+}

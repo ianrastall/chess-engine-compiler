@@ -32,7 +32,17 @@ public sealed partial class MainWindow : Window
     private static readonly string[] Engines = EngineCatalog.Items.Select(e => e.Id).ToArray();
     private static string EngineName(string engine) => EngineCatalog.Name(engine);
     private string OptionsPath(string engine) => engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, $"{engine}-options.json");
-    private string RecommendedArchitecture => _engine == "caissa" ? _hardware.CppRecommended : _engine == "igel" ? _hardware.IgelRecommended : _engine == "reckless" ? _hardware.RecklessRecommended : _engine == "obsidian" ? _hardware.ObsidianRecommended : _engine == "berserk" ? _hardware.BerserkRecommended : _hardware.Recommended;
+    private string RecommendedArchitecture => _engine == "alexandria" && _hardware.CppRecommended == "x86-64" ? "" : _engine is "caissa" or "alexandria" ? _hardware.CppRecommended : _engine == "igel" ? _hardware.IgelRecommended : _engine == "reckless" ? _hardware.RecklessRecommended : _engine == "obsidian" ? _hardware.ObsidianRecommended : _engine == "berserk" ? _hardware.BerserkRecommended : _hardware.Recommended;
+    private IEnumerable<string> ArchitectureChoices => _engine switch
+    {
+        "caissa" => _hardware.CppChoices,
+        "alexandria" => _hardware.CppChoices.Where(c => c != "x86-64"),
+        "igel" => _hardware.IgelChoices,
+        "reckless" => _hardware.RecklessChoices,
+        "obsidian" => _hardware.ObsidianChoices,
+        "berserk" => _hardware.BerserkChoices,
+        _ => _hardware.Choices,
+    };
     public BuildViewModel Model { get; } = new();
     public MainWindow(string? dataFolder = null)
     {
@@ -111,7 +121,7 @@ public sealed partial class MainWindow : Window
         Engine.SelectedIndex = Array.IndexOf(Engines, _engine);
         ShowArchitectures();
         Model.SourceRef = options.SourceRef; Model.MsysRoot = options.MsysRoot; Model.OutputRoot = options.OutputRoot;
-        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && _engine is not ("reckless" or "igel" or "caissa"); Strip.IsChecked = options.Strip;
+        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && _engine is not ("reckless" or "igel" or "caissa" or "alexandria"); Strip.IsChecked = options.Strip;
         AutoArchitecture.IsChecked = options.AutoArchitecture;
         foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == options.Architecture) Architecture.SelectedItem = item;
         PythonPath.Text = options.PythonPath; VisualStudio.Text = options.VisualStudio;
@@ -121,12 +131,13 @@ public sealed partial class MainWindow : Window
         StockfishOptions.Visibility = _engine != "lc0" ? Visibility.Visible : Visibility.Collapsed;
         MsysOptions.Visibility = _engine is "lc0" or "reckless" ? Visibility.Collapsed : Visibility.Visible;
         RustRequirements.Visibility = _engine == "reckless" ? Visibility.Visible : Visibility.Collapsed;
-        Pgo.Visibility = _engine is "reckless" or "igel" or "caissa" ? Visibility.Collapsed : Visibility.Visible;
+        Pgo.Visibility = _engine is "reckless" or "igel" or "caissa" or "alexandria" ? Visibility.Collapsed : Visibility.Visible;
         Lc0Options.Visibility = _engine == "lc0" ? Visibility.Visible : Visibility.Collapsed;
         Jobs.Visibility = _engine is "berserk" or "igel" ? Visibility.Collapsed : Visibility.Visible;
         CompileButton.Content = StartMenu.Text = $"Compile {EngineName(_engine)}";
         SourceHint.Text = _engine switch
         {
+            "alexandria" => "Default: Alexandria v9.1.0. GCC regular build with a source-pinned, verified and preprocessed network. PGO is unavailable.",
             "caissa" => "Default: Caissa 2.0. GCC regular build with a hash-checked embedded network. PGO is unavailable.",
             "lc0" => "Default: Lc0 v0.32.1. Network weights are selected separately below.",
             "igel" => "Default: Igel 3.8.0. Standard NNUE network embedded; AVX2 required. GCC regular build with Syzygy, without PGO.",
@@ -137,6 +148,7 @@ public sealed partial class MainWindow : Window
         };
         ToolTipService.SetToolTip(SourceRef, _engine switch
         {
+            "alexandria" => "Select a PGG106/Alexandria release tag, branch or exact commit. Default: v9.1.0.",
             "caissa" => "Select a Witek902/Caissa release tag, branch or exact commit. Default: 2.0.",
             "lc0" => "Select an official LeelaChessZero/lc0 release tag, branch or exact commit. The default is v0.32.1. Its pinned lczero-common submodule is fetched with it.",
             "igel" => "Select a vshcherbyna/igel release tag, branch or exact commit. Default: 3.8.0.",
@@ -152,9 +164,9 @@ public sealed partial class MainWindow : Window
     private void ShowArchitectures()
     {
         Architecture.Items.Clear();
-        foreach (var choice in _engine == "caissa" ? _hardware.CppChoices : _engine == "igel" ? _hardware.IgelChoices : _engine == "reckless" ? _hardware.RecklessChoices : _engine == "obsidian" ? _hardware.ObsidianChoices : _engine == "berserk" ? _hardware.BerserkChoices : _hardware.Choices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
+        foreach (var choice in ArchitectureChoices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
         Architecture.SelectedIndex = Architecture.Items.Count > 0 ? 0 : -1;
-        ArchitectureExplanation.Text = _engine == "caissa" ? $"Recommended Caissa target: {_hardware.CppRecommended}. Only compatible targets are offered; older AMD CPUs avoid PEXT." : _engine == "igel" ? (_hardware.IgelChoices.Count == 0 ? "Igel NNUE requires AVX2 and POPCNT; this CPU cannot run it." : $"Recommended Igel target: {_hardware.IgelRecommended}. AVX2 is required; PEXT is avoided on older AMD CPUs.") : _engine == "reckless" ? $"Recommended Reckless target: {_hardware.RecklessRecommended}. AVX2 uses vector evaluation; x86-64 favors compatibility." : _engine == "obsidian" ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}. Only compatible targets are offered; PEXT is avoided on older AMD CPUs." : _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
+        ArchitectureExplanation.Text = _engine == "alexandria" ? $"Recommended Alexandria target: {RecommendedArchitecture}. AVX2/FMA is required for a reference-matching build. Older AMD CPUs avoid PEXT." : _engine == "caissa" ? $"Recommended {EngineName(_engine)} target: {_hardware.CppRecommended}. Only compatible targets are offered; older AMD CPUs avoid PEXT." : _engine == "igel" ? (_hardware.IgelChoices.Count == 0 ? "Igel NNUE requires AVX2 and POPCNT; this CPU cannot run it." : $"Recommended Igel target: {_hardware.IgelRecommended}. AVX2 is required; PEXT is avoided on older AMD CPUs.") : _engine == "reckless" ? $"Recommended Reckless target: {_hardware.RecklessRecommended}. AVX2 uses vector evaluation; x86-64 favors compatibility." : _engine == "obsidian" ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}. Only compatible targets are offered; PEXT is avoided on older AMD CPUs." : _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
     }
     private void Engine_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -313,6 +325,7 @@ public sealed partial class MainWindow : Window
     private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine switch
     {
         "lc0" => "https://github.com/LeelaChessZero/lc0/releases",
+        "alexandria" => "https://github.com/PGG106/Alexandria/releases",
         "caissa" => "https://github.com/Witek902/Caissa/releases",
         "igel" => "https://github.com/vshcherbyna/igel/releases",
         "reckless" => "https://github.com/codedeliveryservice/Reckless/releases",
@@ -348,7 +361,7 @@ public sealed partial class MainWindow : Window
         XamlRoot = Root.XamlRoot,
         Title = "Build requirements",
         CloseButtonText = "Close",
-        Content = new TextBlock { Text = _engine == "caissa" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Caissa uses a regular static GCC build with the source-selected network embedded. Its published network hash is checked. Parallel jobs apply. PGO is not included." : _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Tools are never installed by the app." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nTools are detected or selected; they are never installed by the app." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
+        Content = new TextBlock { Text = _engine is "caissa" or "alexandria" ? "Install MSYS2 UCRT64 GCC, make, git and curl. The selected engine uses a regular static GCC build with its source-selected network embedded. Its published network hash is checked. Parallel jobs apply. PGO is not included." : _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Tools are never installed by the app." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nTools are detected or selected; they are never installed by the app." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
     }.ShowAsync();
     private async void About_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {

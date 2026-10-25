@@ -25,7 +25,7 @@ public static class ScriptExporter
 
     public static string Export(BuildOptions options, string parent, string appDirectory)
     {
-        if (options.Engine is not ("stockfish" or "lc0" or "berserk" or "obsidian" or "reckless" or "igel" or "caissa")) throw new ArgumentException("Unsupported engine.", nameof(options));
+        if (options.Engine is not ("stockfish" or "lc0" or "berserk" or "obsidian" or "reckless" or "igel" or "caissa" or "alexandria")) throw new ArgumentException("Unsupported engine.", nameof(options));
         var folder = Path.Combine(parent, $"{options.Engine}-scripts-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(folder);
         File.WriteAllText(Path.Combine(folder, "engine.json"), SerializeOptions(options));

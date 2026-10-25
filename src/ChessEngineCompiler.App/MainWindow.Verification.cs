@@ -99,6 +99,14 @@ public sealed partial class MainWindow
         SelectEngine("stockfish"); Require(Options().Equals(stockfish), "Caissa changed Stockfish settings.");
         SelectEngine("caissa"); Require(Options().Equals(caissa), "Caissa options were not retained.");
         SelectEngine("lc0");
+        SelectEngine("alexandria");
+        Require(Model.SourceRef == "v9.1.0" && Pgo.Visibility == Visibility.Collapsed && Options().Architecture == _hardware.CppRecommended, "Alexandria defaults or controls are wrong.");
+        Require(!ArchitectureChoices.Contains("x86-64"), "Alexandria exposed its unverified scalar baseline.");
+        var alexandria = Options();
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "alexandria.png"));
+        SelectEngine("caissa"); Require(Options().Equals(caissa), "Alexandria changed Caissa settings.");
+        SelectEngine("alexandria"); Require(Options().Equals(alexandria), "Alexandria options were not retained.");
+        SelectEngine("lc0");
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);

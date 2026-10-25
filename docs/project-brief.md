@@ -61,3 +61,7 @@ A GCC adapter builds Igel 3.8.0's standard embedded NNUE with Syzygy support. It
 ## Additional engine: Caissa
 
 Caissa 2.0 uses a separate regular GCC adapter, with an embedded source-selected network, published SHA-256 verification, compatible CPU choices and standalone UCI/benchmark verification. Engine selectors share an alphabetically sorted catalog with stable IDs. See [Caissa](caissa.md).
+
+## Additional engine: Alexandria
+
+Alexandria v9.1.0 builds with regular MSYS2 UCRT64 GCC, source-hash-selected network download/preprocessing, AVX2/BMI2 targets and reference benchmark validation. The scalar baseline is excluded after failing that validation. See [Alexandria](alexandria.md).

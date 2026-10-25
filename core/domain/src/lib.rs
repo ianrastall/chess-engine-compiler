@@ -15,6 +15,7 @@ use std::{
 };
 
 type Result<T> = std::result::Result<T, String>;
+mod alexandria;
 mod berserk;
 mod caissa;
 pub mod github;
@@ -75,6 +76,7 @@ pub fn defaults(engine: &str) -> BuildOptions {
         "reckless" => reckless::defaults(),
         "igel" => igel::defaults(),
         "caissa" => caissa::defaults(),
+        "alexandria" => alexandria::defaults(),
         _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
@@ -91,6 +93,7 @@ fn engine_name(engine: &str) -> &'static str {
         "reckless" => "Reckless",
         "igel" => "Igel",
         "caissa" => "Caissa",
+        "alexandria" => "Alexandria",
         _ => "Stockfish",
     }
 }
@@ -155,14 +158,21 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
             "obsidian" => resolved.architecture = hardware::detect().obsidian_recommended,
             "reckless" => resolved.architecture = hardware::detect().reckless_recommended,
             "igel" => resolved.architecture = hardware::detect().igel_recommended,
-            "caissa" => resolved.architecture = hardware::detect().cpp_recommended,
+            "caissa" | "alexandria" => resolved.architecture = hardware::detect().cpp_recommended,
             _ => {}
         }
     }
     let options = &resolved;
     if !matches!(
         options.engine.as_str(),
-        "stockfish" | "lc0" | "berserk" | "obsidian" | "reckless" | "igel" | "caissa"
+        "stockfish"
+            | "lc0"
+            | "berserk"
+            | "obsidian"
+            | "reckless"
+            | "igel"
+            | "caissa"
+            | "alexandria"
     ) {
         return Err("Select a supported engine.".into());
     }
@@ -201,6 +211,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     }
     if options.engine == "caissa" {
         return caissa::plan(options);
+    }
+    if options.engine == "alexandria" {
+        return alexandria::plan(options);
     }
     let compatible = hardware::detect().choices.contains(&options.architecture);
     if !compatible {
@@ -596,6 +609,9 @@ fn build(
     }
     if options.engine == "caissa" {
         return caissa::build(options, &job, shared, cancel);
+    }
+    if options.engine == "alexandria" {
+        return alexandria::build(options, &job, shared, cancel);
     }
     let root = Path::new(&options.msys_root);
     let path = std::env::join_paths(

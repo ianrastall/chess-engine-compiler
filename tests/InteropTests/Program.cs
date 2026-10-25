@@ -54,6 +54,11 @@ if (caissa.SourceRef != "2.0" || caissa.Architecture != hardware.CppRecommended 
 caissa.OutputRoot = Path.GetTempPath(); caissa.Pgo = true;
 try { core.Call(Request.Types.Operation.Plan, caissa); throw new Exception("Unsupported Caissa PGO accepted."); }
 catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
+var alexandria = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "alexandria" }).Options;
+if (alexandria.SourceRef != "v9.1.0" || alexandria.Architecture != hardware.CppRecommended) throw new Exception("Wrong Alexandria defaults/hardware.");
+alexandria.OutputRoot = Path.GetTempPath(); alexandria.Pgo = true;
+try { core.Call(Request.Types.Operation.Plan, alexandria); throw new Exception("Unsupported Alexandria PGO accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
 core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
 var networkDeadline = DateTime.UtcNow.AddSeconds(5);
 GitHubSnapshot network;
