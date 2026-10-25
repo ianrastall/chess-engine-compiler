@@ -49,3 +49,7 @@ Requested by Ian on 24 October 2026 as the next useful engine. Berserk (GPL-3.0,
 ## Additional engine: Obsidian
 
 Obsidian support follows the Rust adapter and typed ABI model, with its own CPU names, embedded source-selected network, optional verified PGO and standalone UCI/benchmark verification. See [Obsidian](obsidian.md).
+
+## Additional engine: Reckless
+
+A separate Rust/Cargo adapter builds Reckless v0.9.0 with a static MSVC CRT and an embedded network. Initial support deliberately omits Syzygy and PGO; the form explains this and the core rejects unsupported PGO. See [Reckless](reckless.md).

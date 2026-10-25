@@ -1,0 +1,7 @@
+# Reckless
+
+[Reckless](https://github.com/codedeliveryservice/Reckless) is an AGPL-3.0 Rust engine. The tested default is `v0.9.0`. Install Rust 1.88 or later with the `x86_64-pc-windows-msvc` target, MSVC x64 C++ build tools and a Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH; restart the app after changing PATH. The app does not install tools.
+
+This adapter builds regular CPU releases **without Syzygy tablebases or PGO** (`--no-default-features`). PGO is hidden and rejected by the Rust validator. There are no MSYS2 or GPU controls. Targets are native, x86-64 and AVX2 when supported. AVX2 enables vector evaluation without requiring BMI2/PEXT. Symbol stripping uses Cargo's release strip setting. CRT linkage is static.
+
+Rust invokes Cargo with the committed lockfile in a private job workspace and a private target directory, preserving upstream source and existing outputs. Upstream's build script downloads and embeds its named network. Provenance records its computed SHA-256 and URL, the source commit, Rust/Cargo versions, target/flags, options, omitted Syzygy support, UCI and standalone benchmark results. Network integrity is recorded rather than advertised as independently authenticated. Source archive and license accompany each result; network source remains in the job. The result must run with only System32 on PATH. Older source layouts are not claimed compatible.

@@ -1,0 +1,10 @@
+{
+  "engine": "reckless",
+  "sourceRef": "v0.9.0",
+  "outputRoot": "D:/Chess engine builds",
+  "architecture": "avx2",
+  "autoArchitecture": true,
+  "jobs": 4,
+  "pgo": false,
+  "strip": true
+}

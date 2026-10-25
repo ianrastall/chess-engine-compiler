@@ -35,6 +35,8 @@ message Hardware {
   repeated string berserk_choices = 7;
   string obsidian_recommended = 8;
   repeated string obsidian_choices = 9;
+  string reckless_recommended = 10;
+  repeated string reckless_choices = 11;
 }
 message GitHubQuery {
   enum Action { CATALOG = 0; RELEASE_ASSETS = 1; ARTIFACTS = 2; DOWNLOAD_RELEASE = 3; DOWNLOAD_ARTIFACT = 4; ACCOUNT = 5; SIGN_IN = 6; }

@@ -37,6 +37,12 @@ obsidian.OutputRoot = Path.GetTempPath(); obsidian.AutoArchitecture = false; obs
 try { core.Call(Request.Types.Operation.Plan, obsidian); throw new Exception("Stockfish target accepted for Obsidian."); }
 catch (InvalidOperationException e) when (e.Message.Contains("Obsidian target")) { }
 if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(obsidian)).Equals(obsidian)) throw new Exception("Obsidian script configuration did not round-trip.");
+var reckless = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "reckless" }).Options;
+if (reckless.SourceRef != "v0.9.0" || reckless.Pgo || reckless.Architecture != hardware.RecklessRecommended || !hardware.RecklessChoices.Contains(reckless.Architecture)) throw new Exception("Wrong Reckless defaults/hardware.");
+reckless.OutputRoot = Path.GetTempPath(); reckless.Pgo = true;
+try { core.Call(Request.Types.Operation.Plan, reckless); throw new Exception("Unsupported Reckless PGO accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
+if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(reckless)).Equals(reckless)) throw new Exception("Reckless script configuration did not round-trip.");
 core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
 var networkDeadline = DateTime.UtcNow.AddSeconds(5);
 GitHubSnapshot network;

@@ -36,6 +36,10 @@ Select **Berserk** to compile [Berserk](https://github.com/jhonnold/berserk) wit
 
 Select **Obsidian** to build v16.0 using MSYS2 UCRT64 GCC. Its source-selected network is embedded, with SHA-256 recorded in provenance. Regular and PGO builds pass standalone UCI and benchmark verification. See [Obsidian details](docs/obsidian.md) and the [example](examples/obsidian.json).
 
+## Reckless
+
+Select **Reckless** for a Rust/MSVC CPU build of v0.9.0 with its embedded network. Initial support omits Syzygy and PGO. Rust/Cargo, MSVC x64 tools, Git and curl are required. See [Reckless details](docs/reckless.md) and the [example](examples/reckless.json).
+
 ## Versions, architecture and GitHub
 
 The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.

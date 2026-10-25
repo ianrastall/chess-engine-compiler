@@ -74,6 +74,7 @@
                                     <ComboBoxItem Content="Lc0"/>
                                     <ComboBoxItem Content="Berserk"/>
                                     <ComboBoxItem Content="Obsidian"/>
+                                    <ComboBoxItem Content="Reckless"/>
                                 </ComboBox>
                                 <StackPanel Spacing="8">
                                     <ComboBox x:Name="SourceChannel" Header="Source selection" HorizontalAlignment="Stretch" SelectedIndex="2" SelectionChanged="SourceChannel_Changed" ToolTipService.ToolTip="Official releases use published release tags. Development versions are recent default-branch commits or prerelease tags from GitHub. Custom accepts any reachable upstream tag, branch or commit.">
@@ -106,6 +107,7 @@
                                         ToolTipService.ToolTip="Each build creates a new jobs subfolder containing its source, downloaded network, full log and verified result. Previous builds are retained. Allow space for the source, network and compiler output."/>
                                     <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseOutput_Click"/>
                                 </Grid>
+                                <TextBlock x:Name="RustRequirements" Text="Requires Rust/Cargo, MSVC x64 C++ tools, Windows SDK, Git and curl on PATH. This build omits Syzygy and PGO." Visibility="Collapsed" TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
                                 <StackPanel x:Name="StockfishOptions" Spacing="16">
                                     <TextBlock x:Name="HardwareSummary" Style="{StaticResource JupiterCaptionTextStyle}"/>
                                     <CheckBox x:Name="AutoArchitecture" Content="Use recommended architecture" Checked="AutoArchitecture_Changed" Unchecked="AutoArchitecture_Changed" ToolTipService.ToolTip="Detect this CPU’s supported instructions and select the recommended target for the selected engine automatically. Older AMD Zen CPUs avoid slow BMI2/PEXT. Turn this off to choose another compatible target. Recommendations are not a speed benchmark."/>

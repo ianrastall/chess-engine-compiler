@@ -70,6 +70,15 @@ public sealed partial class MainWindow
         Engine.SelectedIndex = 0; Require(Options().Equals(stockfish), "Obsidian altered Stockfish settings.");
         Engine.SelectedIndex = 3; Require(Options().Equals(obsidian), "Obsidian settings were not retained.");
         Engine.SelectedIndex = 1; Require(Options().Equals(lc0), "Obsidian altered Lc0 settings.");
+        Engine.SelectedIndex = 4;
+        Require(_engine == "reckless" && MsysOptions.Visibility == Visibility.Collapsed && Pgo.Visibility == Visibility.Collapsed && RustRequirements.Visibility == Visibility.Visible, "Reckless exposed unsupported controls.");
+        Require(Model.SourceRef == "v0.9.0" && Options().Architecture == _hardware.RecklessRecommended && !Options().Pgo, "Reckless defaults are wrong.");
+        AutoArchitecture.IsChecked = false; Architecture.SelectedIndex = 1;
+        var reckless = Options();
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "reckless.png"));
+        Engine.SelectedIndex = 3; Require(Options().Equals(obsidian) && Pgo.Visibility == Visibility.Visible, "Reckless changed Obsidian settings.");
+        Engine.SelectedIndex = 4; Require(Options().Equals(reckless), "Reckless settings were not retained.");
+        Engine.SelectedIndex = 1;
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);
@@ -91,7 +100,7 @@ public sealed partial class MainWindow
         Require(SettingsPage.Visibility == Visibility.Visible && AccentSetting.Service is not null, "Settings page or its shared accent control is not connected.");
         Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "settings.png"));
-        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0, Berserk and Obsidian, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0, Berserk, Obsidian and Reckless, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

@@ -136,7 +136,8 @@ fn repository(engine: &str) -> Result<&'static str> {
         "lc0" => Ok("LeelaChessZero/lc0"),
         "berserk" => Ok("jhonnold/berserk"),
         "obsidian" => Ok("gab8192/Obsidian"),
-        _ => Err("Select Stockfish, Lc0, Berserk or Obsidian.".into()),
+        "reckless" => Ok("codedeliveryservice/Reckless"),
+        _ => Err("Select Stockfish, Lc0, Berserk, Obsidian or Reckless.".into()),
     }
 }
 fn field(value: &Value, name: &str) -> String {

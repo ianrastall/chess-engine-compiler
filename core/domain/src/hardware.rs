@@ -11,6 +11,8 @@ pub struct Hardware {
     pub berserk_choices: Vec<String>,
     pub obsidian_recommended: String,
     pub obsidian_choices: Vec<String>,
+    pub reckless_recommended: String,
+    pub reckless_choices: Vec<String>,
 }
 
 pub fn detect() -> Hardware {
@@ -107,6 +109,16 @@ pub fn detect() -> Hardware {
         })
         .unwrap()
         .into();
+    let mut reckless_choices = vec!["native".into(), "x86-64".into()];
+    if std::is_x86_feature_detected!("avx2") {
+        reckless_choices.push("avx2".into());
+    }
+    let reckless_recommended = if reckless_choices.iter().any(|c| c == "avx2") {
+        "avx2"
+    } else {
+        "x86-64"
+    }
+    .into();
     Hardware {
         cpu_name: String::from_utf8_lossy(&brand)
             .trim_matches(['\0', ' '])
@@ -131,6 +143,8 @@ pub fn detect() -> Hardware {
         berserk_choices,
         obsidian_recommended,
         obsidian_choices,
+        reckless_recommended,
+        reckless_choices,
         recommended,
         choices,
     }
