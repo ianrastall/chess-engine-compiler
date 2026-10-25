@@ -128,6 +128,8 @@ pub unsafe extern "C" fn cec_call(
                     obsidian_choices: h.obsidian_choices,
                     reckless_recommended: h.reckless_recommended,
                     reckless_choices: h.reckless_choices,
+                    igel_recommended: h.igel_recommended,
+                    igel_choices: h.igel_choices,
                 });
                 Ok(())
             }

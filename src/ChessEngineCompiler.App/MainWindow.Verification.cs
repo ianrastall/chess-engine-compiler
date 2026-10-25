@@ -79,6 +79,17 @@ public sealed partial class MainWindow
         Engine.SelectedIndex = 3; Require(Options().Equals(obsidian) && Pgo.Visibility == Visibility.Visible, "Reckless changed Obsidian settings.");
         Engine.SelectedIndex = 4; Require(Options().Equals(reckless), "Reckless settings were not retained.");
         Engine.SelectedIndex = 1;
+        Engine.SelectedIndex = 5;
+        Require(_engine == "igel" && MsysOptions.Visibility == Visibility.Visible && Pgo.Visibility == Visibility.Collapsed && Jobs.Visibility == Visibility.Collapsed, "Igel exposed unsupported controls.");
+        Require(Model.SourceRef == "3.8.0" && Options().Architecture == _hardware.IgelRecommended && !Options().Pgo, "Igel defaults are wrong.");
+        var igel = Options();
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "igel.png"));
+        var realHardware = _hardware.Clone(); _hardware.IgelChoices.Clear(); _hardware.IgelRecommended = "";
+        ShowArchitectures(); Require(Options().Architecture == "", "Unavailable Igel architecture did not remain empty.");
+        _hardware = realHardware; LoadOptions(igel);
+        Engine.SelectedIndex = 4; Require(Options().Equals(reckless), "Igel changed Reckless settings.");
+        Engine.SelectedIndex = 5; Require(Options().Equals(igel), "Igel settings were not retained.");
+        Engine.SelectedIndex = 1;
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);
@@ -100,7 +111,7 @@ public sealed partial class MainWindow
         Require(SettingsPage.Visibility == Visibility.Visible && AccentSetting.Service is not null, "Settings page or its shared accent control is not connected.");
         Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "settings.png"));
-        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0, Berserk, Obsidian and Reckless, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0, Berserk, Obsidian, Reckless and Igel, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

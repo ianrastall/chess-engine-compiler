@@ -18,6 +18,7 @@ type Result<T> = std::result::Result<T, String>;
 mod berserk;
 pub mod github;
 pub mod hardware;
+mod igel;
 mod lc0;
 mod obsidian;
 mod reckless;
@@ -71,6 +72,7 @@ pub fn defaults(engine: &str) -> BuildOptions {
         "berserk" => berserk::defaults(),
         "obsidian" => obsidian::defaults(),
         "reckless" => reckless::defaults(),
+        "igel" => igel::defaults(),
         _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
@@ -85,6 +87,7 @@ fn engine_name(engine: &str) -> &'static str {
         "berserk" => "Berserk",
         "obsidian" => "Obsidian",
         "reckless" => "Reckless",
+        "igel" => "Igel",
         _ => "Stockfish",
     }
 }
@@ -148,15 +151,16 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
             "berserk" => resolved.architecture = hardware::detect().berserk_recommended,
             "obsidian" => resolved.architecture = hardware::detect().obsidian_recommended,
             "reckless" => resolved.architecture = hardware::detect().reckless_recommended,
+            "igel" => resolved.architecture = hardware::detect().igel_recommended,
             _ => {}
         }
     }
     let options = &resolved;
     if !matches!(
         options.engine.as_str(),
-        "stockfish" | "lc0" | "berserk" | "obsidian" | "reckless"
+        "stockfish" | "lc0" | "berserk" | "obsidian" | "reckless" | "igel"
     ) {
-        return Err("Select Stockfish, Lc0, Berserk, Obsidian or Reckless.".into());
+        return Err("Select Stockfish, Lc0, Berserk, Obsidian, Reckless or Igel.".into());
     }
     if options.source_ref.is_empty()
         || options.source_ref.starts_with('-')
@@ -187,6 +191,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     }
     if options.engine == "reckless" {
         return reckless::plan(options);
+    }
+    if options.engine == "igel" {
+        return igel::plan(options);
     }
     let compatible = hardware::detect().choices.contains(&options.architecture);
     if !compatible {
@@ -576,6 +583,9 @@ fn build(
     }
     if options.engine == "reckless" {
         return reckless::build(options, &job, shared, cancel);
+    }
+    if options.engine == "igel" {
+        return igel::build(options, &job, shared, cancel);
     }
     let root = Path::new(&options.msys_root);
     let path = std::env::join_paths(

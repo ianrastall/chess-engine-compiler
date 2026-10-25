@@ -40,6 +40,10 @@ Select **Obsidian** to build v16.0 using MSYS2 UCRT64 GCC. Its source-selected n
 
 Select **Reckless** for a Rust/MSVC CPU build of v0.9.0 with its embedded network. Initial support omits Syzygy and PGO. Rust/Cargo, MSVC x64 tools, Git and curl are required. See [Reckless details](docs/reckless.md) and the [example](examples/reckless.json).
 
+## Igel
+
+Select **Igel** for a GCC build of 3.8.0 with its standard embedded NNUE and Syzygy support. AVX2 is required. PGO is unavailable. The network hash is checked, and the benchmark must match the source commit when a reference is supplied. See [Igel details](docs/igel.md) and the [example](examples/igel.json).
+
 ## Versions, architecture and GitHub
 
 The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.

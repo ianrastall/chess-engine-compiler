@@ -30,10 +30,10 @@ public sealed partial class MainWindow : Window
     private readonly string DataFolder;
     private string ConfigPath => Path.Combine(DataFolder, "build-options.json");
     // Order matches the Engine combo box.
-    private static readonly string[] Engines = ["stockfish", "lc0", "berserk", "obsidian", "reckless"];
-    private static string EngineName(string engine) => engine switch { "lc0" => "Lc0", "berserk" => "Berserk", "obsidian" => "Obsidian", "reckless" => "Reckless", _ => "Stockfish" };
+    private static readonly string[] Engines = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel"];
+    private static string EngineName(string engine) => engine switch { "lc0" => "Lc0", "berserk" => "Berserk", "obsidian" => "Obsidian", "reckless" => "Reckless", "igel" => "Igel", _ => "Stockfish" };
     private string OptionsPath(string engine) => engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, $"{engine}-options.json");
-    private string RecommendedArchitecture => _engine == "reckless" ? _hardware.RecklessRecommended : _engine == "obsidian" ? _hardware.ObsidianRecommended : _engine == "berserk" ? _hardware.BerserkRecommended : _hardware.Recommended;
+    private string RecommendedArchitecture => _engine == "igel" ? _hardware.IgelRecommended : _engine == "reckless" ? _hardware.RecklessRecommended : _engine == "obsidian" ? _hardware.ObsidianRecommended : _engine == "berserk" ? _hardware.BerserkRecommended : _hardware.Recommended;
     public BuildViewModel Model { get; } = new();
     public MainWindow(string? dataFolder = null)
     {
@@ -63,7 +63,7 @@ public sealed partial class MainWindow : Window
         {
             var lastPath = Path.Combine(DataFolder, "last-engine.txt");
             var last = File.Exists(lastPath) ? File.ReadAllText(lastPath) : "stockfish";
-            if (last is "lc0" or "berserk" or "obsidian" or "reckless" && File.Exists(OptionsPath(last))) options = ReadOptions(File.ReadAllText(OptionsPath(last)));
+            if (last is "lc0" or "berserk" or "obsidian" or "reckless" or "igel" && File.Exists(OptionsPath(last))) options = ReadOptions(File.ReadAllText(OptionsPath(last)));
         }
         catch (Exception e) when (e is IOException or JsonException or InvalidOperationException) { ShowProblem("Saved engine options could not be read. Stockfish settings have been restored."); }
         LoadOptions(options);
@@ -111,7 +111,7 @@ public sealed partial class MainWindow : Window
         Engine.SelectedIndex = Array.IndexOf(Engines, _engine);
         ShowArchitectures();
         Model.SourceRef = options.SourceRef; Model.MsysRoot = options.MsysRoot; Model.OutputRoot = options.OutputRoot;
-        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo; Strip.IsChecked = options.Strip;
+        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && _engine is not ("reckless" or "igel"); Strip.IsChecked = options.Strip;
         AutoArchitecture.IsChecked = options.AutoArchitecture;
         foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == options.Architecture) Architecture.SelectedItem = item;
         PythonPath.Text = options.PythonPath; VisualStudio.Text = options.VisualStudio;
@@ -121,13 +121,14 @@ public sealed partial class MainWindow : Window
         StockfishOptions.Visibility = _engine != "lc0" ? Visibility.Visible : Visibility.Collapsed;
         MsysOptions.Visibility = _engine is "lc0" or "reckless" ? Visibility.Collapsed : Visibility.Visible;
         RustRequirements.Visibility = _engine == "reckless" ? Visibility.Visible : Visibility.Collapsed;
-        Pgo.Visibility = _engine == "reckless" ? Visibility.Collapsed : Visibility.Visible;
+        Pgo.Visibility = _engine is "reckless" or "igel" ? Visibility.Collapsed : Visibility.Visible;
         Lc0Options.Visibility = _engine == "lc0" ? Visibility.Visible : Visibility.Collapsed;
-        Jobs.Visibility = _engine == "berserk" ? Visibility.Collapsed : Visibility.Visible;
+        Jobs.Visibility = _engine is "berserk" or "igel" ? Visibility.Collapsed : Visibility.Visible;
         CompileButton.Content = StartMenu.Text = $"Compile {EngineName(_engine)}";
         SourceHint.Text = _engine switch
         {
             "lc0" => "Default: Lc0 v0.32.1. Network weights are selected separately below.",
+            "igel" => "Default: Igel 3.8.0. Standard NNUE network embedded; AVX2 required. GCC regular build with Syzygy, without PGO.",
             "reckless" => "Default: Reckless v0.9.0. Rust CPU build with an embedded network; Syzygy and PGO are not included.",
             "obsidian" => "Default: Obsidian v16.0. The source-selected network is downloaded and embedded; its SHA-256 is recorded.",
             "berserk" => "Default: Berserk 14. The network named by the source is downloaded, verified and embedded in the executable.",
@@ -136,6 +137,7 @@ public sealed partial class MainWindow : Window
         ToolTipService.SetToolTip(SourceRef, _engine switch
         {
             "lc0" => "Select an official LeelaChessZero/lc0 release tag, branch or exact commit. The default is v0.32.1. Its pinned lczero-common submodule is fetched with it.",
+            "igel" => "Select a vshcherbyna/igel release tag, branch or exact commit. Default: 3.8.0.",
             "reckless" => "Select a codedeliveryservice/Reckless release tag, branch or exact commit. Default: v0.9.0.",
             "obsidian" => "Select a gab8192/Obsidian release tag, branch or exact commit. The default is v16.0.",
             "berserk" => "Select an official jhonnold/berserk release tag, branch or exact commit. The default is 14; main follows development.",
@@ -148,9 +150,9 @@ public sealed partial class MainWindow : Window
     private void ShowArchitectures()
     {
         Architecture.Items.Clear();
-        foreach (var choice in _engine == "reckless" ? _hardware.RecklessChoices : _engine == "obsidian" ? _hardware.ObsidianChoices : _engine == "berserk" ? _hardware.BerserkChoices : _hardware.Choices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
-        Architecture.SelectedIndex = 0;
-        ArchitectureExplanation.Text = _engine == "reckless" ? $"Recommended Reckless target: {_hardware.RecklessRecommended}. AVX2 uses vector evaluation; x86-64 favors compatibility." : _engine == "obsidian" ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}. Only compatible targets are offered; PEXT is avoided on older AMD CPUs." : _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
+        foreach (var choice in _engine == "igel" ? _hardware.IgelChoices : _engine == "reckless" ? _hardware.RecklessChoices : _engine == "obsidian" ? _hardware.ObsidianChoices : _engine == "berserk" ? _hardware.BerserkChoices : _hardware.Choices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
+        Architecture.SelectedIndex = Architecture.Items.Count > 0 ? 0 : -1;
+        ArchitectureExplanation.Text = _engine == "igel" ? (_hardware.IgelChoices.Count == 0 ? "Igel NNUE requires AVX2 and POPCNT; this CPU cannot run it." : $"Recommended Igel target: {_hardware.IgelRecommended}. AVX2 is required; PEXT is avoided on older AMD CPUs.") : _engine == "reckless" ? $"Recommended Reckless target: {_hardware.RecklessRecommended}. AVX2 uses vector evaluation; x86-64 favors compatibility." : _engine == "obsidian" ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}. Only compatible targets are offered; PEXT is avoided on older AMD CPUs." : _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
     }
     private void Engine_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -188,7 +190,7 @@ public sealed partial class MainWindow : Window
         SourceRef = Model.SourceRef.Trim(),
         MsysRoot = Model.MsysRoot.Trim(),
         OutputRoot = Model.OutputRoot.Trim(),
-        Architecture = (string)((ComboBoxItem)Architecture.SelectedItem).Content,
+        Architecture = (Architecture.SelectedItem as ComboBoxItem)?.Content as string ?? "",
         Jobs = double.IsFinite(Jobs.Value) ? (uint)Math.Clamp(Jobs.Value, 0, 256) : 0,
         Pgo = Pgo.IsChecked == true,
         Strip = Strip.IsChecked == true,
@@ -309,6 +311,7 @@ public sealed partial class MainWindow : Window
     private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine switch
     {
         "lc0" => "https://github.com/LeelaChessZero/lc0/releases",
+        "igel" => "https://github.com/vshcherbyna/igel/releases",
         "reckless" => "https://github.com/codedeliveryservice/Reckless/releases",
         "obsidian" => "https://github.com/gab8192/Obsidian/releases",
         "berserk" => "https://github.com/jhonnold/berserk/releases",
@@ -342,14 +345,14 @@ public sealed partial class MainWindow : Window
         XamlRoot = Root.XamlRoot,
         Title = "Build requirements",
         CloseButtonText = "Close",
-        Content = new TextBlock { Text = _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Tools are never installed by the app." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nTools are detected or selected; they are never installed by the app." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
+        Content = new TextBlock { Text = _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Tools are never installed by the app." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nTools are detected or selected; they are never installed by the app." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
     }.ShowAsync();
     private async void About_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
         Title = "About Chess Engine Compiler",
         CloseButtonText = "Close",
-        Content = $"Chess Engine Compiler {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}\nPart of Jupiter · MIT license · Windows 11 x64\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish, Lc0, Berserk, Obsidian and Reckless are supported. Engines, networks and runtime libraries retain their upstream licenses."
+        Content = $"Chess Engine Compiler {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}\nPart of Jupiter · MIT license · Windows 11 x64\nBuild {System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false).Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion}\n\nStockfish, Lc0, Berserk, Obsidian, Reckless and Igel are supported. Engines, networks and runtime libraries retain their upstream licenses."
     }.ShowAsync();
     private async void Exit_Click(object sender, RoutedEventArgs e) => await CloseAsync();
     private async Task CloseAsync()

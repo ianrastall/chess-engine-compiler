@@ -75,6 +75,7 @@
                                     <ComboBoxItem Content="Berserk"/>
                                     <ComboBoxItem Content="Obsidian"/>
                                     <ComboBoxItem Content="Reckless"/>
+                                    <ComboBoxItem Content="Igel"/>
                                 </ComboBox>
                                 <StackPanel Spacing="8">
                                     <ComboBox x:Name="SourceChannel" Header="Source selection" HorizontalAlignment="Stretch" SelectedIndex="2" SelectionChanged="SourceChannel_Changed" ToolTipService.ToolTip="Official releases use published release tags. Development versions are recent default-branch commits or prerelease tags from GitHub. Custom accepts any reachable upstream tag, branch or commit.">

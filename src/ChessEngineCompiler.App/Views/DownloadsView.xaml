@@ -7,7 +7,7 @@
         <StackPanel Spacing="8">
             <TextBlock Text="Download existing release assets or workflow archives. Downloads run separately from compilation and do not install or execute files." Style="{StaticResource JupiterCaptionTextStyle}"/>
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <ComboBox x:Name="DownloadEngine" Header="Engine" SelectedIndex="0" SelectionChanged="Engine_Changed" Width="200"><ComboBoxItem Content="Stockfish"/><ComboBoxItem Content="Lc0"/><ComboBoxItem Content="Berserk"/><ComboBoxItem Content="Obsidian"/><ComboBoxItem Content="Reckless"/></ComboBox>
+                <ComboBox x:Name="DownloadEngine" Header="Engine" SelectedIndex="0" SelectionChanged="Engine_Changed" Width="200"><ComboBoxItem Content="Stockfish"/><ComboBoxItem Content="Lc0"/><ComboBoxItem Content="Berserk"/><ComboBoxItem Content="Obsidian"/><ComboBoxItem Content="Reckless"/><ComboBoxItem Content="Igel"/></ComboBox>
                 <Button x:Name="CatalogRefresh" Content="Refresh releases" VerticalAlignment="Bottom" Click="CatalogRefresh_Click"/>
                 <Button x:Name="CatalogNewer" Content="Newer releases" VerticalAlignment="Bottom" IsEnabled="False" Click="CatalogNewer_Click"/>
                 <Button x:Name="CatalogOlder" Content="Older releases" VerticalAlignment="Bottom" IsEnabled="False" Click="CatalogOlder_Click"/>

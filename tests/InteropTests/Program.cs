@@ -43,6 +43,12 @@ reckless.OutputRoot = Path.GetTempPath(); reckless.Pgo = true;
 try { core.Call(Request.Types.Operation.Plan, reckless); throw new Exception("Unsupported Reckless PGO accepted."); }
 catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
 if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(reckless)).Equals(reckless)) throw new Exception("Reckless script configuration did not round-trip.");
+var igel = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "igel" }).Options;
+if (igel.SourceRef != "3.8.0" || igel.Pgo || igel.Architecture != hardware.IgelRecommended) throw new Exception("Wrong Igel defaults/hardware.");
+igel.OutputRoot = Path.GetTempPath(); igel.Pgo = true;
+try { core.Call(Request.Types.Operation.Plan, igel); throw new Exception("Unsupported Igel PGO accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
+if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(igel)).Equals(igel)) throw new Exception("Igel script configuration did not round-trip.");
 core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
 var networkDeadline = DateTime.UtcNow.AddSeconds(5);
 GitHubSnapshot network;

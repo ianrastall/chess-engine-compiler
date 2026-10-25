@@ -53,3 +53,7 @@ Obsidian support follows the Rust adapter and typed ABI model, with its own CPU 
 ## Additional engine: Reckless
 
 A separate Rust/Cargo adapter builds Reckless v0.9.0 with a static MSVC CRT and an embedded network. Initial support deliberately omits Syzygy and PGO; the form explains this and the core rejects unsupported PGO. See [Reckless](reckless.md).
+
+## Additional engine: Igel
+
+A GCC adapter builds Igel 3.8.0's standard embedded NNUE with Syzygy support. It requires AVX2/POPCNT, verifies the network SHA-256 and checks the standalone benchmark against the source commit's reference count when supplied. PGO/HCE/separate FRC-network variants are not exposed. See [Igel](igel.md).

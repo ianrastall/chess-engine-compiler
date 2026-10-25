@@ -13,6 +13,8 @@ pub struct Hardware {
     pub obsidian_choices: Vec<String>,
     pub reckless_recommended: String,
     pub reckless_choices: Vec<String>,
+    pub igel_recommended: String,
+    pub igel_choices: Vec<String>,
 }
 
 pub fn detect() -> Hardware {
@@ -119,6 +121,21 @@ pub fn detect() -> Hardware {
         "x86-64"
     }
     .into();
+    let mut igel_choices = Vec::new();
+    if avx2 {
+        igel_choices.extend(["native".into(), "avx2".into()]);
+    }
+    if bmi2 {
+        igel_choices.push("avx2-pext".into());
+    }
+    let igel_recommended = if bmi2 && !slow_bmi2 {
+        "avx2-pext"
+    } else if avx2 {
+        "avx2"
+    } else {
+        ""
+    }
+    .into();
     Hardware {
         cpu_name: String::from_utf8_lossy(&brand)
             .trim_matches(['\0', ' '])
@@ -145,6 +162,8 @@ pub fn detect() -> Hardware {
         obsidian_choices,
         reckless_recommended,
         reckless_choices,
+        igel_recommended,
+        igel_choices,
         recommended,
         choices,
     }

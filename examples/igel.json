@@ -1,0 +1,11 @@
+{
+  "engine": "igel",
+  "sourceRef": "3.8.0",
+  "msysRoot": "C:/msys64",
+  "outputRoot": "D:/Chess engine builds",
+  "architecture": "avx2",
+  "autoArchitecture": true,
+  "jobs": 1,
+  "pgo": false,
+  "strip": true
+}
