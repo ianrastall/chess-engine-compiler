@@ -1,6 +1,6 @@
 # Chess Engine Compiler handoff
 
-Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.4.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
+Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.5.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
 
 ## Build and verify
 
@@ -32,3 +32,6 @@ GitHub metadata/authentication/downloads are owned by `core/domain/src/github.rs
 `hardware.rs` owns CPUID/OS feature detection, compatible targets and the recommendation. `auto_architecture` is an additive protobuf/build field; absent legacy JSON fields default to manual so existing scripts retain their target. New GUI defaults enable automatic selection. PowerShell hosting carries executable/argument data as JSON in a private process environment value, never by interpolating shell command text. Native interactive UCI verification remains direct. The app's configured GitHub credential is used only for API requests and is not added to engine build subprocesses.
 
 See docs/github.md for API permissions, pagination, binary provenance, expiry, cancellation and setup. The CLI additionally exposes hardware and github browsing/download commands; CLI authentication is anonymous or explicitly selected GitHub CLI, with no token command-line argument.
+
+
+Version 0.5 adds independently verified adapters for Obsidian (MSYS2 GCC, regular/PGO), Reckless (Rust/MSVC, regular without Syzygy), and Igel (MSYS2 GCC, standard NNUE/Syzygy, regular). New hardware fields are additive protobuf ABI fields. Each adapter validates its own target names; unsupported PGO and variants are hidden/rejected. See docs/obsidian.md, docs/reckless.md, docs/igel.md and the fresh source-build evidence in docs/validation.md. Reckless creates a private Cargo workspace containing the upstream profile settings and committed lockfile; generated workspace text is recorded in its manifest.
