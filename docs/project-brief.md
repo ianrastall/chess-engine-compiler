@@ -45,3 +45,7 @@ Restore compatible CPU choices and automatic Stockfish recommendations. Present 
 ## Version 0.4: Berserk
 
 Requested by Ian on 24 October 2026 as the next useful engine. Berserk (GPL-3.0, C, makefile build) meets the "other engines" criteria: documented build, Windows support and repeatable `bench` verification. It reuses the MSYS2 UCRT64 GCC toolchain and Stockfish's form controls with Berserk's own CPU target names; parallel jobs are hidden because upstream compiles in one invocation. Its upstream network is downloaded, hash-checked against its file name and embedded; the static executable must pass UCI and a standalone search with a clean PATH. Clang is not exposed. See [the Berserk workflow](berserk.md).
+
+## Additional engine: Obsidian
+
+Obsidian support follows the Rust adapter and typed ABI model, with its own CPU names, embedded source-selected network, optional verified PGO and standalone UCI/benchmark verification. See [Obsidian](obsidian.md).

@@ -60,6 +60,16 @@ public sealed partial class MainWindow
         Require(Options().Equals(berserk), "Switching engines lost Berserk selections.");
         Engine.SelectedIndex = 1;
         Require(Options().Equals(lc0), "Switching from Berserk changed Lc0 selections.");
+        Engine.SelectedIndex = 3;
+        Require(_engine == "obsidian" && Jobs.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Visible, "Obsidian controls are wrong.");
+        Require(Model.SourceRef == "v16.0" && Options().Architecture == _hardware.ObsidianRecommended && !Pgo.IsChecked!.Value, "Obsidian defaults are wrong.");
+        Require(Architecture.Items.Cast<Microsoft.UI.Xaml.Controls.ComboBoxItem>().Select(i => (string)i.Content).SequenceEqual(_hardware.ObsidianChoices), "Obsidian CPU choices are wrong.");
+        AutoArchitecture.IsChecked = false; Architecture.SelectedIndex = 1; Strip.IsChecked = false;
+        var obsidian = Options();
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "obsidian.png"));
+        Engine.SelectedIndex = 0; Require(Options().Equals(stockfish), "Obsidian altered Stockfish settings.");
+        Engine.SelectedIndex = 3; Require(Options().Equals(obsidian), "Obsidian settings were not retained.");
+        Engine.SelectedIndex = 1; Require(Options().Equals(lc0), "Obsidian altered Lc0 settings.");
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);
@@ -81,7 +91,7 @@ public sealed partial class MainWindow
         Require(SettingsPage.Visibility == Visibility.Visible && AccentSetting.Service is not null, "Settings page or its shared accent control is not connected.");
         Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "settings.png"));
-        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0 and Berserk, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0, Berserk and Obsidian, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

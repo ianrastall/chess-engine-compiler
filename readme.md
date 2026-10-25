@@ -32,6 +32,10 @@ Select **Lc0** to show its backend, Python/Meson, Visual Studio, CUDA and networ
 
 Select **Berserk** to compile [Berserk](https://github.com/jhonnold/berserk) with the same MSYS2 UCRT64 GCC toolchain as Stockfish; also install `wget` in MSYS2. The default source is release tag `14`. The build downloads the network named by that source, checks its SHA-256 and embeds it in a single static `berserk.exe`, which must pass UCI and a standalone search with no MSYS2 directories on PATH. Berserk offers its own CPU target names. PGO is off by default because it measured no faster with GCC. See [Berserk build details](docs/berserk.md).
 
+## Obsidian
+
+Select **Obsidian** to build v16.0 using MSYS2 UCRT64 GCC. Its source-selected network is embedded, with SHA-256 recorded in provenance. Regular and PGO builds pass standalone UCI and benchmark verification. See [Obsidian details](docs/obsidian.md) and the [example](examples/obsidian.json).
+
 ## Versions, architecture and GitHub
 
 The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.

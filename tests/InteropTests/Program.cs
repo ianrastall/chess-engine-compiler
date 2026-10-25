@@ -31,6 +31,12 @@ try { core.Call(Request.Types.Operation.Plan, berserk); throw new Exception("A S
 catch (InvalidOperationException e) when (e.Message.Contains("Berserk target")) { }
 var berserkRoundTrip = Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(berserk));
 if (!berserkRoundTrip.Equals(berserk)) throw new Exception("Berserk script configuration did not round-trip.");
+var obsidian = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "obsidian" }).Options;
+if (obsidian.SourceRef != "v16.0" || obsidian.Architecture != hardware.ObsidianRecommended || !hardware.ObsidianChoices.Contains(obsidian.Architecture)) throw new Exception("Wrong Obsidian defaults/hardware.");
+obsidian.OutputRoot = Path.GetTempPath(); obsidian.AutoArchitecture = false; obsidian.Architecture = "x86-64";
+try { core.Call(Request.Types.Operation.Plan, obsidian); throw new Exception("Stockfish target accepted for Obsidian."); }
+catch (InvalidOperationException e) when (e.Message.Contains("Obsidian target")) { }
+if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(obsidian)).Equals(obsidian)) throw new Exception("Obsidian script configuration did not round-trip.");
 core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
 var networkDeadline = DateTime.UtcNow.AddSeconds(5);
 GitHubSnapshot network;

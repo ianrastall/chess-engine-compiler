@@ -19,6 +19,7 @@ mod berserk;
 pub mod github;
 pub mod hardware;
 mod lc0;
+mod obsidian;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -67,6 +68,7 @@ pub fn defaults(engine: &str) -> BuildOptions {
     match engine {
         "lc0" => lc0::defaults(),
         "berserk" => berserk::defaults(),
+        "obsidian" => obsidian::defaults(),
         _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
@@ -79,6 +81,7 @@ fn engine_name(engine: &str) -> &'static str {
     match engine {
         "lc0" => "Lc0",
         "berserk" => "Berserk",
+        "obsidian" => "Obsidian",
         _ => "Stockfish",
     }
 }
@@ -140,12 +143,16 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
         match resolved.engine.as_str() {
             "stockfish" => resolved.architecture = hardware::detect().recommended,
             "berserk" => resolved.architecture = hardware::detect().berserk_recommended,
+            "obsidian" => resolved.architecture = hardware::detect().obsidian_recommended,
             _ => {}
         }
     }
     let options = &resolved;
-    if !matches!(options.engine.as_str(), "stockfish" | "lc0" | "berserk") {
-        return Err("Select Stockfish, Lc0 or Berserk.".into());
+    if !matches!(
+        options.engine.as_str(),
+        "stockfish" | "lc0" | "berserk" | "obsidian"
+    ) {
+        return Err("Select Stockfish, Lc0, Berserk or Obsidian.".into());
     }
     if options.source_ref.is_empty()
         || options.source_ref.starts_with('-')
@@ -170,6 +177,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     }
     if options.engine == "berserk" {
         return berserk::plan(options);
+    }
+    if options.engine == "obsidian" {
+        return obsidian::plan(options);
     }
     let compatible = hardware::detect().choices.contains(&options.architecture);
     if !compatible {
@@ -553,6 +563,9 @@ fn build(
     }
     if options.engine == "berserk" {
         return berserk::build(options, &job, shared, cancel);
+    }
+    if options.engine == "obsidian" {
+        return obsidian::build(options, &job, shared, cancel);
     }
     let root = Path::new(&options.msys_root);
     let path = std::env::join_paths(

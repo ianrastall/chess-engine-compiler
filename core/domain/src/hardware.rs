@@ -9,6 +9,8 @@ pub struct Hardware {
     pub berserk_recommended: String,
     pub berserk_explanation: String,
     pub berserk_choices: Vec<String>,
+    pub obsidian_recommended: String,
+    pub obsidian_choices: Vec<String>,
 }
 
 pub fn detect() -> Hardware {
@@ -76,6 +78,35 @@ pub fn detect() -> Hardware {
     let recommended = recommend(&choices, slow_bmi2);
     let berserk_choices = berserk_targets(&choices);
     let berserk_recommended = berserk_recommend(&berserk_choices, slow_bmi2);
+    let mut obsidian_choices = vec!["native".into()];
+    if pop {
+        obsidian_choices.push("sse2".into());
+    }
+    if pop && std::is_x86_feature_detected!("ssse3") {
+        obsidian_choices.push("ssse3".into());
+    }
+    let obs_avx2 = avx2
+        && std::is_x86_feature_detected!("ssse3")
+        && std::is_x86_feature_detected!("sse4.1")
+        && std::is_x86_feature_detected!("bmi1")
+        && std::is_x86_feature_detected!("fma");
+    if obs_avx2 {
+        obsidian_choices.push("avx2".into());
+    }
+    if obs_avx2 && bmi2 {
+        obsidian_choices.push("avx2-pext".into());
+    }
+    if obs_avx2 && avx512 {
+        obsidian_choices.push("avx512".into());
+    }
+    let obsidian_recommended = ["avx512", "avx2-pext", "avx2", "ssse3", "sse2", "native"]
+        .into_iter()
+        .find(|id| {
+            !(slow_bmi2 && matches!(*id, "avx512" | "avx2-pext"))
+                && obsidian_choices.iter().any(|c| c == id)
+        })
+        .unwrap()
+        .into();
     Hardware {
         cpu_name: String::from_utf8_lossy(&brand)
             .trim_matches(['\0', ' '])
@@ -98,6 +129,8 @@ pub fn detect() -> Hardware {
         ),
         berserk_recommended,
         berserk_choices,
+        obsidian_recommended,
+        obsidian_choices,
         recommended,
         choices,
     }

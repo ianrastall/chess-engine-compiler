@@ -124,6 +124,8 @@ pub unsafe extern "C" fn cec_call(
                     berserk_recommended: h.berserk_recommended,
                     berserk_explanation: h.berserk_explanation,
                     berserk_choices: h.berserk_choices,
+                    obsidian_recommended: h.obsidian_recommended,
+                    obsidian_choices: h.obsidian_choices,
                 });
                 Ok(())
             }

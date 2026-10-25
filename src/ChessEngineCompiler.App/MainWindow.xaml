@@ -73,6 +73,7 @@
                                     <ComboBoxItem Content="Stockfish"/>
                                     <ComboBoxItem Content="Lc0"/>
                                     <ComboBoxItem Content="Berserk"/>
+                                    <ComboBoxItem Content="Obsidian"/>
                                 </ComboBox>
                                 <StackPanel Spacing="8">
                                     <ComboBox x:Name="SourceChannel" Header="Source selection" HorizontalAlignment="Stretch" SelectedIndex="2" SelectionChanged="SourceChannel_Changed" ToolTipService.ToolTip="Official releases use published release tags. Development versions are recent default-branch commits or prerelease tags from GitHub. Custom accepts any reachable upstream tag, branch or commit.">
@@ -96,7 +97,7 @@
                                 <Grid x:Name="MsysOptions" ColumnSpacing="8">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBox x:Name="MsysRoot" Header="MSYS2 root folder" Text="{x:Bind Model.MsysRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ToolTipService.ToolTip="MSYS2 supplies the Unix-style build tools and UCRT64 GCC compiler used by Stockfish and Berserk on Windows. Select the installation root, for example C:\msys64, rather than its ucrt64 or bin subfolder. See Help > Build requirements for packages."/>
+                                        ToolTipService.ToolTip="MSYS2 supplies the Unix-style build tools and UCRT64 GCC compiler used by the supported GCC engines on Windows. Select the installation root, for example C:\msys64, rather than its ucrt64 or bin subfolder. See Help > Build requirements for packages."/>
                                     <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseMsys_Click"/>
                                 </Grid>
                                 <Grid ColumnSpacing="8">
