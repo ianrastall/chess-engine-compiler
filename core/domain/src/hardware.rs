@@ -15,6 +15,8 @@ pub struct Hardware {
     pub reckless_choices: Vec<String>,
     pub igel_recommended: String,
     pub igel_choices: Vec<String>,
+    pub cpp_recommended: String,
+    pub cpp_choices: Vec<String>,
 }
 
 pub fn detect() -> Hardware {
@@ -136,6 +138,21 @@ pub fn detect() -> Hardware {
         ""
     }
     .into();
+    let mut cpp_choices = vec!["x86-64".into()];
+    if obs_avx2 && std::is_x86_feature_detected!("sse4.2") {
+        cpp_choices.push("avx2".into());
+        if bmi2 {
+            cpp_choices.push("bmi2".into());
+        }
+    }
+    let cpp_recommended = if cpp_choices.iter().any(|v| v == "bmi2") && !slow_bmi2 {
+        "bmi2"
+    } else if cpp_choices.iter().any(|v| v == "avx2") {
+        "avx2"
+    } else {
+        "x86-64"
+    }
+    .into();
     Hardware {
         cpu_name: String::from_utf8_lossy(&brand)
             .trim_matches(['\0', ' '])
@@ -164,6 +181,8 @@ pub fn detect() -> Hardware {
         reckless_choices,
         igel_recommended,
         igel_choices,
+        cpp_recommended,
+        cpp_choices,
         recommended,
         choices,
     }

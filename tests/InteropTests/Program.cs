@@ -49,6 +49,11 @@ igel.OutputRoot = Path.GetTempPath(); igel.Pgo = true;
 try { core.Call(Request.Types.Operation.Plan, igel); throw new Exception("Unsupported Igel PGO accepted."); }
 catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
 if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(igel)).Equals(igel)) throw new Exception("Igel script configuration did not round-trip.");
+var caissa = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "caissa" }).Options;
+if (caissa.SourceRef != "2.0" || caissa.Architecture != hardware.CppRecommended || !hardware.CppChoices.Contains(caissa.Architecture)) throw new Exception("Wrong Caissa defaults/hardware.");
+caissa.OutputRoot = Path.GetTempPath(); caissa.Pgo = true;
+try { core.Call(Request.Types.Operation.Plan, caissa); throw new Exception("Unsupported Caissa PGO accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
 core.Call(Request.Types.Operation.GithubStart, github: new GitHubQuery { Engine = "lc0", AuthMode = "invalid" });
 var networkDeadline = DateTime.UtcNow.AddSeconds(5);
 GitHubSnapshot network;

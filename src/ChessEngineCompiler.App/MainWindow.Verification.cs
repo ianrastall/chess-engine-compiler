@@ -12,6 +12,8 @@ public sealed partial class MainWindow
     internal async Task VerifyEngineUiAsync(string report)
     {
         Bindings.Update();
+        void SelectEngine(string id) => Engine.SelectedIndex = EngineCatalog.Index(id);
+        if (!EngineCatalog.Items.Select(e => e.Name).SequenceEqual(EngineCatalog.Items.Select(e => e.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))) throw new InvalidOperationException("Engine dropdown is not alphabetical.");
         static void Require(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
         AutoArchitecture.IsChecked = true;
         Require(!Architecture.IsEnabled && Options().Architecture == _hardware.Recommended, "Automatic architecture did not select a compatible recommendation.");
@@ -29,7 +31,7 @@ public sealed partial class MainWindow
         Model.SourceRef = "sf_19"; Model.OutputRoot = @"D:\Example output";
         Jobs.Value = 2; Pgo.IsChecked = true; Architecture.SelectedIndex = 3;
         var stockfish = Options();
-        Engine.SelectedIndex = 1;
+        SelectEngine("lc0");
         Require(_engine == "lc0" && Lc0Options.Visibility == Visibility.Visible && StockfishOptions.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Collapsed, "Lc0 did not select its own controls.");
         Require(Model.SourceRef == "v0.32.1" && CompileButton.Content.ToString() == "Compile Lc0", "Lc0 source or action is wrong.");
         Require(Model.OutputRoot == stockfish.OutputRoot && Jobs.Value == 2, "First Lc0 selection lost shared output/jobs defaults.");
@@ -37,15 +39,15 @@ public sealed partial class MainWindow
         Backend.SelectedIndex = 1;
         Require(CudaRoot.Visibility == Visibility.Collapsed, "CPU selection still exposes CUDA toolkit settings.");
         var lc0 = Options();
-        Engine.SelectedIndex = 0;
+        SelectEngine("stockfish");
         Require(_engine == "stockfish" && StockfishOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed, "Stockfish controls were not restored.");
         Require(Options().Equals(stockfish), "Switching engines changed Stockfish selections.");
-        Engine.SelectedIndex = 1;
+        SelectEngine("lc0");
         Require(Options().Equals(lc0), "Switching engines lost Lc0 selections.");
         Backend.SelectedIndex = 0;
         Require(CudaRoot.Visibility == Visibility.Visible, "CUDA selection did not show its toolkit setting.");
         lc0 = Options();
-        Engine.SelectedIndex = 2;
+        SelectEngine("berserk");
         Require(_engine == "berserk" && StockfishOptions.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed && Jobs.Visibility == Visibility.Collapsed, "Berserk did not select its own controls.");
         Require(Model.SourceRef == "14" && CompileButton.Content.ToString() == "Compile Berserk", "Berserk source or action is wrong.");
         Require(Architecture.Items.Cast<Microsoft.UI.Xaml.Controls.ComboBoxItem>().Select(i => (string)i.Content).SequenceEqual(_hardware.BerserkChoices), "Berserk did not offer its own CPU targets.");
@@ -54,32 +56,32 @@ public sealed partial class MainWindow
         var berserk = Options();
         Require(berserk.Architecture == "x86-64", "Manual Berserk target was not selected.");
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "berserk.png"));
-        Engine.SelectedIndex = 0;
+        SelectEngine("stockfish");
         Require(Options().Equals(stockfish) && Jobs.Visibility == Visibility.Visible, "Switching from Berserk changed Stockfish selections.");
-        Engine.SelectedIndex = 2;
+        SelectEngine("berserk");
         Require(Options().Equals(berserk), "Switching engines lost Berserk selections.");
-        Engine.SelectedIndex = 1;
+        SelectEngine("lc0");
         Require(Options().Equals(lc0), "Switching from Berserk changed Lc0 selections.");
-        Engine.SelectedIndex = 3;
+        SelectEngine("obsidian");
         Require(_engine == "obsidian" && Jobs.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Visible, "Obsidian controls are wrong.");
         Require(Model.SourceRef == "v16.0" && Options().Architecture == _hardware.ObsidianRecommended && !Pgo.IsChecked!.Value, "Obsidian defaults are wrong.");
         Require(Architecture.Items.Cast<Microsoft.UI.Xaml.Controls.ComboBoxItem>().Select(i => (string)i.Content).SequenceEqual(_hardware.ObsidianChoices), "Obsidian CPU choices are wrong.");
         AutoArchitecture.IsChecked = false; Architecture.SelectedIndex = 1; Strip.IsChecked = false;
         var obsidian = Options();
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "obsidian.png"));
-        Engine.SelectedIndex = 0; Require(Options().Equals(stockfish), "Obsidian altered Stockfish settings.");
-        Engine.SelectedIndex = 3; Require(Options().Equals(obsidian), "Obsidian settings were not retained.");
-        Engine.SelectedIndex = 1; Require(Options().Equals(lc0), "Obsidian altered Lc0 settings.");
-        Engine.SelectedIndex = 4;
+        SelectEngine("stockfish"); Require(Options().Equals(stockfish), "Obsidian altered Stockfish settings.");
+        SelectEngine("obsidian"); Require(Options().Equals(obsidian), "Obsidian settings were not retained.");
+        SelectEngine("lc0"); Require(Options().Equals(lc0), "Obsidian altered Lc0 settings.");
+        SelectEngine("reckless");
         Require(_engine == "reckless" && MsysOptions.Visibility == Visibility.Collapsed && Pgo.Visibility == Visibility.Collapsed && RustRequirements.Visibility == Visibility.Visible, "Reckless exposed unsupported controls.");
         Require(Model.SourceRef == "v0.9.0" && Options().Architecture == _hardware.RecklessRecommended && !Options().Pgo, "Reckless defaults are wrong.");
         AutoArchitecture.IsChecked = false; Architecture.SelectedIndex = 1;
         var reckless = Options();
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "reckless.png"));
-        Engine.SelectedIndex = 3; Require(Options().Equals(obsidian) && Pgo.Visibility == Visibility.Visible, "Reckless changed Obsidian settings.");
-        Engine.SelectedIndex = 4; Require(Options().Equals(reckless), "Reckless settings were not retained.");
-        Engine.SelectedIndex = 1;
-        Engine.SelectedIndex = 5;
+        SelectEngine("obsidian"); Require(Options().Equals(obsidian) && Pgo.Visibility == Visibility.Visible, "Reckless changed Obsidian settings.");
+        SelectEngine("reckless"); Require(Options().Equals(reckless), "Reckless settings were not retained.");
+        SelectEngine("lc0");
+        SelectEngine("igel");
         Require(_engine == "igel" && MsysOptions.Visibility == Visibility.Visible && Pgo.Visibility == Visibility.Collapsed && Jobs.Visibility == Visibility.Collapsed, "Igel exposed unsupported controls.");
         Require(Model.SourceRef == "3.8.0" && Options().Architecture == _hardware.IgelRecommended && !Options().Pgo, "Igel defaults are wrong.");
         var igel = Options();
@@ -87,9 +89,16 @@ public sealed partial class MainWindow
         var realHardware = _hardware.Clone(); _hardware.IgelChoices.Clear(); _hardware.IgelRecommended = "";
         ShowArchitectures(); Require(Options().Architecture == "", "Unavailable Igel architecture did not remain empty.");
         _hardware = realHardware; LoadOptions(igel);
-        Engine.SelectedIndex = 4; Require(Options().Equals(reckless), "Igel changed Reckless settings.");
-        Engine.SelectedIndex = 5; Require(Options().Equals(igel), "Igel settings were not retained.");
-        Engine.SelectedIndex = 1;
+        SelectEngine("reckless"); Require(Options().Equals(reckless), "Igel changed Reckless settings.");
+        SelectEngine("igel"); Require(Options().Equals(igel), "Igel settings were not retained.");
+        SelectEngine("lc0");
+        SelectEngine("caissa");
+        Require(Model.SourceRef == "2.0" && Pgo.Visibility == Visibility.Collapsed && Options().Architecture == _hardware.CppRecommended, "Caissa defaults or controls are wrong.");
+        var caissa = Options();
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "caissa.png"));
+        SelectEngine("stockfish"); Require(Options().Equals(stockfish), "Caissa changed Stockfish settings.");
+        SelectEngine("caissa"); Require(Options().Equals(caissa), "Caissa options were not retained.");
+        SelectEngine("lc0");
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
         Root.UpdateLayout(); await Task.Delay(200);
@@ -99,7 +108,7 @@ public sealed partial class MainWindow
         OptionsScroll.ChangeView(null, OptionsScroll.ScrollableHeight, null, true);
         Root.UpdateLayout(); await Task.Delay(150);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "lc0-tools.png"));
-        Engine.SelectedIndex = 0;
+        SelectEngine("stockfish");
         OptionsScroll.ChangeView(null, 0, null, true);
         Root.UpdateLayout(); await Task.Delay(150);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "stockfish.png"));
@@ -111,7 +120,7 @@ public sealed partial class MainWindow
         Require(SettingsPage.Visibility == Visibility.Visible && AccentSetting.Service is not null, "Settings page or its shared accent control is not connected.");
         Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "settings.png"));
-        File.WriteAllText(report, "PASS: real WinUI engine switching across Stockfish, Lc0, Berserk, Obsidian, Reckless and Igel, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, engine switching and Caissa, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

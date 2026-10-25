@@ -57,3 +57,7 @@ A separate Rust/Cargo adapter builds Reckless v0.9.0 with a static MSVC CRT and 
 ## Additional engine: Igel
 
 A GCC adapter builds Igel 3.8.0's standard embedded NNUE with Syzygy support. It requires AVX2/POPCNT, verifies the network SHA-256 and checks the standalone benchmark against the source commit's reference count when supplied. PGO/HCE/separate FRC-network variants are not exposed. See [Igel](igel.md).
+
+## Additional engine: Caissa
+
+Caissa 2.0 uses a separate regular GCC adapter, with an embedded source-selected network, published SHA-256 verification, compatible CPU choices and standalone UCI/benchmark verification. Engine selectors share an alphabetically sorted catalog with stable IDs. See [Caissa](caissa.md).

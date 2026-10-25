@@ -130,6 +130,8 @@ pub unsafe extern "C" fn cec_call(
                     reckless_choices: h.reckless_choices,
                     igel_recommended: h.igel_recommended,
                     igel_choices: h.igel_choices,
+                    cpp_recommended: h.cpp_recommended,
+                    cpp_choices: h.cpp_choices,
                 });
                 Ok(())
             }

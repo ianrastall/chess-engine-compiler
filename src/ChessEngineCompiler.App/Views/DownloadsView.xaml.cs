@@ -15,11 +15,13 @@ public sealed partial class DownloadsView : UserControl, IAsyncDisposable
     private uint _page = 1, _catalogPage = 1;
     private string _output = "";
     private nint _owner;
-    private string Engine => DownloadEngine.SelectedIndex switch { 1 => "lc0", 2 => "berserk", 3 => "obsidian", 4 => "reckless", 5 => "igel", _ => "stockfish" };
+    private string Engine => (DownloadEngine.SelectedItem as EngineEntry)?.Id ?? "stockfish";
     public bool DownloadActive => _download.Active;
     public DownloadsView()
     {
         InitializeComponent();
+        DownloadEngine.ItemsSource = EngineCatalog.Items;
+        DownloadEngine.SelectedIndex = EngineCatalog.Index("stockfish");
         Folder.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Chess engine downloads");
         Loaded += (_, _) => { if (!_loaded) { _loaded = true; if (!_verification && _auth is not null) _ = LoadCatalogAsync(1); } };
     }
@@ -109,6 +111,7 @@ public sealed partial class DownloadsView : UserControl, IAsyncDisposable
     public async ValueTask DisposeAsync() { _disposed = true; await _browse.DisposeAsync(); await _download.DisposeAsync(); }
     internal void VerifyControls()
     {
+        if (!DownloadEngine.Items.Cast<EngineEntry>().Select(e => e.Name).SequenceEqual(EngineCatalog.Items.Select(e => e.Name))) throw new InvalidOperationException("Download engine order differs from the shared alphabetical catalog.");
         if (!_verification) throw new InvalidOperationException("Verification requires isolated state.");
         Files.ItemsSource = new[] { new DownloadRow(new DownloadItem { Id = 1, Name = "stockfish-windows-x86-64-bmi2.zip", Size = 10 * 1048576, Details = "Release asset" }), new DownloadRow(new DownloadItem { Id = 2, Name = "expired-workflow", Expired = true }) };
         Files.SelectedIndex = 1;

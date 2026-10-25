@@ -69,14 +69,7 @@
                         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <ScrollViewer x:Name="OptionsScroll" VerticalScrollBarVisibility="Auto">
                             <ContentControl x:Name="Configuration" HorizontalContentAlignment="Stretch" Padding="0,0,12,12"><StackPanel Spacing="16">
-                                <ComboBox x:Name="Engine" Header="Engine" HorizontalAlignment="Stretch" SelectedIndex="0" ToolTipService.ToolTip="Select the engine to compile. Each engine keeps its own source revision, toolchain and build settings.">
-                                    <ComboBoxItem Content="Stockfish"/>
-                                    <ComboBoxItem Content="Lc0"/>
-                                    <ComboBoxItem Content="Berserk"/>
-                                    <ComboBoxItem Content="Obsidian"/>
-                                    <ComboBoxItem Content="Reckless"/>
-                                    <ComboBoxItem Content="Igel"/>
-                                </ComboBox>
+                                <ComboBox x:Name="Engine" Header="Engine" HorizontalAlignment="Stretch" DisplayMemberPath="Name" ToolTipService.ToolTip="Select the engine to compile. Each engine retains its own settings."/>
                                 <StackPanel Spacing="8">
                                     <ComboBox x:Name="SourceChannel" Header="Source selection" HorizontalAlignment="Stretch" SelectedIndex="2" SelectionChanged="SourceChannel_Changed" ToolTipService.ToolTip="Official releases use published release tags. Development versions are recent default-branch commits or prerelease tags from GitHub. Custom accepts any reachable upstream tag, branch or commit.">
                                         <ComboBoxItem Content="Official release"/><ComboBoxItem Content="Development version"/><ComboBoxItem Content="Custom tag, branch or commit"/>

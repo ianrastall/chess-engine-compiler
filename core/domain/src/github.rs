@@ -138,7 +138,8 @@ fn repository(engine: &str) -> Result<&'static str> {
         "obsidian" => Ok("gab8192/Obsidian"),
         "reckless" => Ok("codedeliveryservice/Reckless"),
         "igel" => Ok("vshcherbyna/igel"),
-        _ => Err("Select Stockfish, Lc0, Berserk, Obsidian, Reckless or Igel.".into()),
+        "caissa" => Ok("Witek902/Caissa"),
+        _ => Err("Select a supported engine.".into()),
     }
 }
 fn field(value: &Value, name: &str) -> String {

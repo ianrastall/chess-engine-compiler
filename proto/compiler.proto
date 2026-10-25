@@ -39,6 +39,8 @@ message Hardware {
   repeated string reckless_choices = 11;
   string igel_recommended = 12;
   repeated string igel_choices = 13;
+  string cpp_recommended = 14;
+  repeated string cpp_choices = 15;
 }
 message GitHubQuery {
   enum Action { CATALOG = 0; RELEASE_ASSETS = 1; ARTIFACTS = 2; DOWNLOAD_RELEASE = 3; DOWNLOAD_ARTIFACT = 4; ACCOUNT = 5; SIGN_IN = 6; }

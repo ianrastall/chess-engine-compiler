@@ -16,6 +16,7 @@ use std::{
 
 type Result<T> = std::result::Result<T, String>;
 mod berserk;
+mod caissa;
 pub mod github;
 pub mod hardware;
 mod igel;
@@ -73,6 +74,7 @@ pub fn defaults(engine: &str) -> BuildOptions {
         "obsidian" => obsidian::defaults(),
         "reckless" => reckless::defaults(),
         "igel" => igel::defaults(),
+        "caissa" => caissa::defaults(),
         _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
@@ -88,6 +90,7 @@ fn engine_name(engine: &str) -> &'static str {
         "obsidian" => "Obsidian",
         "reckless" => "Reckless",
         "igel" => "Igel",
+        "caissa" => "Caissa",
         _ => "Stockfish",
     }
 }
@@ -152,15 +155,16 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
             "obsidian" => resolved.architecture = hardware::detect().obsidian_recommended,
             "reckless" => resolved.architecture = hardware::detect().reckless_recommended,
             "igel" => resolved.architecture = hardware::detect().igel_recommended,
+            "caissa" => resolved.architecture = hardware::detect().cpp_recommended,
             _ => {}
         }
     }
     let options = &resolved;
     if !matches!(
         options.engine.as_str(),
-        "stockfish" | "lc0" | "berserk" | "obsidian" | "reckless" | "igel"
+        "stockfish" | "lc0" | "berserk" | "obsidian" | "reckless" | "igel" | "caissa"
     ) {
-        return Err("Select Stockfish, Lc0, Berserk, Obsidian, Reckless or Igel.".into());
+        return Err("Select a supported engine.".into());
     }
     if options.source_ref.is_empty()
         || options.source_ref.starts_with('-')
@@ -194,6 +198,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     }
     if options.engine == "igel" {
         return igel::plan(options);
+    }
+    if options.engine == "caissa" {
+        return caissa::plan(options);
     }
     let compatible = hardware::detect().choices.contains(&options.architecture);
     if !compatible {
@@ -586,6 +593,9 @@ fn build(
     }
     if options.engine == "igel" {
         return igel::build(options, &job, shared, cancel);
+    }
+    if options.engine == "caissa" {
+        return caissa::build(options, &job, shared, cancel);
     }
     let root = Path::new(&options.msys_root);
     let path = std::env::join_paths(

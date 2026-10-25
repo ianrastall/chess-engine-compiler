@@ -11,7 +11,7 @@ struct Args {
 enum Action {
     /// Print detected MSYS2 UCRT64 tools and default options.
     Doctor {
-        #[arg(long, default_value = "stockfish", value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel"])]
+        #[arg(long, default_value = "stockfish", value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa"])]
         engine: String,
     },
     /// Validate a JSON build configuration and print its steps.
@@ -22,7 +22,7 @@ enum Action {
     Hardware,
     /// Browse upstream GitHub versions/downloads. Credentials never enter command arguments.
     Github {
-        #[arg(value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel"])]
+        #[arg(value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa"])]
         engine: String,
         #[arg(long, default_value="catalog", value_parser=["catalog","assets","artifacts","download-release","download-artifact","account"])]
         action: String,
