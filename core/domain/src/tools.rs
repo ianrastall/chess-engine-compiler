@@ -79,7 +79,8 @@ pub fn catalog(o: &SetupOptions) -> Vec<Tool> {
     let winget = find_tool("winget.exe").is_some();
     let msys = Path::new(&o.msys_root);
     let gcc = toolchain_valid(msys)
-        && ["usr/bin/git.exe", "usr/bin/curl.exe", "usr/bin/wget.exe"]
+        && git_executable(msys).is_some()
+        && ["usr/bin/curl.exe", "usr/bin/wget.exe"]
             .iter()
             .all(|p| msys.join(p).is_file());
     let vs = lc0::defaults().visual_studio;
