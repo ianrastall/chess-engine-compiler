@@ -67,6 +67,8 @@ var toolCatalog = core.Call(Request.Types.Operation.ToolCatalog).Tools;
 if (!toolCatalog.Any(t => t.Id == "zig" && t.Name.Contains("0.17.0")) || !toolCatalog.Any(t => t.Id == "rust")) throw new Exception("Typed build-tool catalog failed.");
 try { core.Call(Request.Types.Operation.ToolSetupStart, toolSetup: new ToolSetupOptions { ToolId = "zig;calc", DestinationRoot = Path.GetTempPath() }); throw new Exception("Unsafe setup action accepted."); }
 catch (InvalidOperationException e) when (e.Message.Contains("supported build tool")) { }
+try { core.Call(Request.Types.Operation.ToolSetupStart, toolSetup: new ToolSetupOptions { ToolId = "meson", PythonPath = @"relative\python.exe", DestinationRoot = Path.GetTempPath() }); throw new Exception("Invalid explicit Python selection accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("selected Python")) { }
 if (toolCatalog.Single(t => t.Id == "rust").Status.StartsWith("Detected:"))
 {
     var setupFolder = Path.Combine(Path.GetTempPath(), "cec-tool-setup-" + Guid.NewGuid().ToString("N"));

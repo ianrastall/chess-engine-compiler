@@ -49,8 +49,9 @@ pub fn find_tool(name: &str) -> Option<PathBuf> {
 }
 fn python(o: &SetupOptions) -> Option<PathBuf> {
     let selected = PathBuf::from(&o.python_path);
-    if selected.is_absolute() && selected.is_file() {
-        Some(selected)
+    if !o.python_path.is_empty() {
+        // An explicit selection must never fall back to a different interpreter.
+        (selected.is_absolute() && selected.is_file()).then_some(selected)
     } else {
         find_tool("python.exe").or_else(|| {
             let local = PathBuf::from(std::env::var_os("LOCALAPPDATA").unwrap_or_default());
@@ -193,6 +194,9 @@ fn validate(o: &SetupOptions) -> Result<()> {
     }
     if o.tool_id == "cuda" {
         return Err("CUDA requires its official interactive download page.".into());
+    }
+    if o.tool_id == "meson" && !o.python_path.is_empty() && python(o).is_none() {
+        return Err("The selected Python executable was not found. Choose an existing absolute Python path, or clear the selection to use automatic detection.".into());
     }
     Ok(())
 }
@@ -416,6 +420,26 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn explicit_python_selection_never_falls_back() {
+        let mut o = SetupOptions {
+            tool_id: "meson".into(),
+            python_path: "relative/python.exe".into(),
+            ..SetupOptions::default()
+        };
+        assert!(python(&o).is_none());
+        assert!(validate(&o).unwrap_err().contains("selected Python"));
+        let missing = std::env::temp_dir()
+            .join(format!("cec-missing-python-{}", std::process::id()))
+            .join("python.exe");
+        o.python_path = missing.to_string_lossy().into();
+        assert!(python(&o).is_none());
+        assert!(validate(&o).is_err());
+        let selected = std::env::current_exe().unwrap();
+        o.python_path = selected.to_string_lossy().into();
+        assert_eq!(python(&o), Some(selected));
+        assert!(validate(&o).is_ok());
+    }
     #[test]
     fn setup_actions_are_allowlisted_and_require_absolute_storage() {
         assert_eq!(winget_package("rust"), Some("Rustlang.Rustup"));

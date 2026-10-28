@@ -21,6 +21,7 @@ Rust owns detection, allowed package IDs/arguments, downloads, extraction, proce
 Private tools and setup jobs live under `%LOCALAPPDATA%/Jupiter/ChessEngineCompiler/tools`. Every setup has a new `setup-jobs` folder and saved log; verified private installations also save setup provenance. App upgrades/uninstall preserve these tools, preferences and engine outputs. Tools are not bundled in the app installer. No unrelated toolchain, system PATH or user package set is silently changed.
 
 CLI examples:
+An explicitly selected Python path must be absolute and point to an existing executable. If it is invalid, Meson/Ninja setup reports the error before starting; clear the selection to use automatic detection.
 
 ```powershell
 .\chess-engine-compiler.exe tools list
