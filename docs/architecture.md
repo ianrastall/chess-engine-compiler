@@ -20,6 +20,12 @@ Stockfish settings retain the existing build-options.json path. Lc0 uses lc0-opt
 
 ## Additional engine adapters
 
-`obsidian.rs`, `reckless.rs` and `igel.rs` own their engine-specific validation and builds. Their CPU choices/recommendations travel through additive hardware protobuf fields; C ABI v1 remains unchanged. Per-engine JSON settings and script exports retain each engine's selections. GitHub repository routing covers all six engines.
+`obsidian.rs`, `reckless.rs` and `igel.rs` own their engine-specific validation and builds. Their CPU choices/recommendations travel through additive hardware protobuf fields; C ABI v1 remains unchanged. Per-engine JSON settings and script exports retain each engine's selections.
 
 Obsidian runs regular or profile-verified GCC builds, honoring symbol retention and embedding its source-selected network. Reckless invokes locked Cargo builds for Windows MSVC without default Syzygy features or PGO. A private job workspace copies upstream Cargo profiles and lockfile, prevents accidental enclosing-workspace membership, and records the generated manifest. Cargo targets stay within each job. Igel uses regular GCC with standard embedded NNUE/Syzygy, restricted CPU flags, verified network identity and a source-reference benchmark comparison. Unsupported controls and variants are hidden and rejected by the Rust validator. All three reuse the core process runner, cancellation tree, persistent job/log and standalone verification machinery. See the engine-specific docs and validation record.
+
+Caissa and Alexandria add separate GCC adapters with source-selected embedded networks and reference benchmark checks. Alexandria preprocesses its network and rejects the scalar baseline after its reference benchmark failed. Avalanche uses Zig 0.17.0, tracked network/vendor sources and private per-job caches. These three adapters support regular builds only. The shared GUI catalog sorts all nine engines alphabetically while keeping their stable IDs and separate settings; GitHub routing covers all nine.
+
+## Explicit tool setup
+
+`tools.rs` owns detection, allowlisted package IDs, reviewed setup commands, verified Zig acquisition and private Meson/Ninja environments. Setup uses the same worker, process runner, cancellation and persistent log infrastructure as builds, through additive protobuf messages on C ABI v1. Selecting an engine or starting a compilation never installs tools. An invalid explicitly selected Python path is rejected before setup creates a job; automatic Python detection applies only when no path is selected. The GUI prevents setup and compilation from overlapping. See [build-tool setup](build-tools.md).
