@@ -206,14 +206,15 @@ impl Spec {
             PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:/Windows".into()))
                 .join("System32");
         phase(shared, "Verify standalone UCI handshake");
-        let uci = run(
-            Command::new(&output)
-                .current_dir(&result)
-                .env("PATH", &system_path),
+        let mut handshake = Command::new(&output);
+        handshake.current_dir(&result).env("PATH", &system_path);
+        shared.lock().unwrap().line(&format!("$ {handshake:?}"));
+        let uci = run_unlogged(
+            &mut handshake,
             shared,
             cancel,
             Duration::from_secs(60),
-            Some("uci\nisready\nquit\n"),
+            ProcessInput::Uci,
         )?;
         if !["uciok", "readyok"]
             .iter()

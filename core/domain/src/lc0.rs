@@ -434,7 +434,7 @@ fn run_with_environment(
     // can contain secrets and must never appear in the build log.
     shared.lock().unwrap().line(&format!("$ {command:?}"));
     command.envs(env.iter().map(|(k, v)| (k, v)));
-    run_unlogged(command, shared, cancel, timeout, None)
+    run_unlogged(command, shared, cancel, timeout, ProcessInput::None)
 }
 
 #[cfg(test)]

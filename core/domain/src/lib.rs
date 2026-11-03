@@ -434,7 +434,19 @@ fn run(
     input: Option<&str>,
 ) -> Result<String> {
     shared.lock().unwrap().line(&format!("$ {command:?}"));
-    run_unlogged(command, shared, cancel, timeout, input)
+    run_unlogged(
+        command,
+        shared,
+        cancel,
+        timeout,
+        input.map_or(ProcessInput::None, ProcessInput::Text),
+    )
+}
+
+enum ProcessInput<'a> {
+    None,
+    Text(&'a str),
+    Uci,
 }
 
 fn powershell_executable() -> Option<PathBuf> {
@@ -475,13 +487,13 @@ fn run_unlogged(
     shared: &Arc<Mutex<Shared>>,
     cancel: &AtomicBool,
     timeout: Duration,
-    input: Option<&str>,
+    input: ProcessInput<'_>,
 ) -> Result<String> {
     if cancel.load(Ordering::SeqCst) {
         return Err("Cancelled".into());
     }
     let mut hosted;
-    let command = if input.is_none()
+    let command = if matches!(input, ProcessInput::None)
         && let Some(host) = powershell_executable()
     {
         hosted = powershell_command(command, &host)?;
@@ -492,7 +504,7 @@ fn run_unlogged(
         }
         &mut hosted
     } else {
-        if input.is_none() {
+        if matches!(input, ProcessInput::None) {
             let mut state = shared.lock().unwrap();
             if !state.host_reported {
                 state.line("Process host: native (PowerShell 7 was not found)");
@@ -507,13 +519,26 @@ fn run_unlogged(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Could not start a build tool: {e}"))?;
-    if let Some(input) = input {
-        if let Some(mut stdin) = child.stdin.take() {
-            let _ = stdin.write_all(input.as_bytes());
+    let mut uci_stdin = child.stdin.take();
+    if let Some(stdin) = &mut uci_stdin {
+        match input {
+            ProcessInput::None => {}
+            ProcessInput::Text(text) => {
+                let _ = stdin.write_all(text.as_bytes());
+            }
+            ProcessInput::Uci => {
+                let _ = stdin.write_all(b"uci\n");
+            }
         }
-    } else {
-        drop(child.stdin.take());
     }
+    // An engine can interpret EOF as an immediate shutdown request, even
+    // when earlier commands are still queued. Wait for each UCI response.
+    if !matches!(input, ProcessInput::Uci) {
+        drop(uci_stdin.take());
+    }
+    let mut exchanges = [("uciok", "isready\n"), ("readyok", "quit\n")]
+        .into_iter()
+        .peekable();
     let (tx, rx) = mpsc::channel();
     let mut readers = Vec::new();
     let stdout = child.stdout.take().unwrap();
@@ -539,6 +564,13 @@ fn run_unlogged(
     let mut captured = String::new();
     let status = loop {
         for line in rx.try_iter() {
+            if let Some(stdin) = &mut uci_stdin
+                && let Some((reply, command)) = exchanges.peek()
+                && line.trim() == *reply
+            {
+                let _ = stdin.write_all(command.as_bytes());
+                exchanges.next();
+            }
             shared.lock().unwrap().line(&line);
             if captured.len() < 256 * 1024 {
                 captured.push_str(&line);
