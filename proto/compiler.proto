@@ -43,6 +43,9 @@ message Hardware {
   repeated string igel_choices = 13;
   string cpp_recommended = 14;
   repeated string cpp_choices = 15;
+  repeated string plentychess_choices = 16;
+  string plentychess_recommended = 17;
+  repeated string stormphrax_choices = 18;
 }
 message GitHubQuery {
   enum Action { CATALOG = 0; RELEASE_ASSETS = 1; ARTIFACTS = 2; DOWNLOAD_RELEASE = 3; DOWNLOAD_ARTIFACT = 4; ACCOUNT = 5; SIGN_IN = 6; }

@@ -64,7 +64,15 @@ if (avalanche.SourceRef != "v5.0.0" || avalanche.Pgo || avalanche.Architecture !
 avalanche.ZigPath = @"D:\Zig tools\zig.exe";
 if (!Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(Jupiter.ChessEngineCompiler.App.Services.ScriptExporter.SerializeOptions(avalanche)).Equals(avalanche)) throw new Exception("Avalanche Zig path did not round-trip.");
 var toolCatalog = core.Call(Request.Types.Operation.ToolCatalog).Tools;
-if (!toolCatalog.Any(t => t.Id == "zig" && t.Name.Contains("0.17.0")) || !toolCatalog.Any(t => t.Id == "rust")) throw new Exception("Typed build-tool catalog failed.");
+if (!toolCatalog.Any(t => t.Id == "zig" && t.Name.Contains("0.17.0")) || !toolCatalog.Any(t => t.Id == "rust") || !toolCatalog.Any(t => t.Id == "clang")) throw new Exception("Typed build-tool catalog failed.");
+var plentyChess = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "plentychess" }).Options;
+if (plentyChess.SourceRef != "b-v8.0.0" || plentyChess.Pgo || plentyChess.Architecture != hardware.PlentychessRecommended) throw new Exception("Wrong PlentyChess defaults.");
+var stormphrax = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "stormphrax" }).Options;
+stormphrax.OutputRoot = Path.GetTempPath(); stormphrax.Pgo = true;
+try { core.Call(Request.Types.Operation.Plan, stormphrax); throw new Exception("Unsupported Stormphrax PGO accepted."); }
+catch (InvalidOperationException e) when (e.Message.Contains("PGO")) { }
+var viridithas = core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "viridithas" }).Options;
+if (viridithas.SourceRef != "v20.0.0" || viridithas.Pgo || viridithas.Architecture != "native") throw new Exception("Wrong Viridithas defaults.");
 try { core.Call(Request.Types.Operation.ToolSetupStart, toolSetup: new ToolSetupOptions { ToolId = "zig;calc", DestinationRoot = Path.GetTempPath() }); throw new Exception("Unsafe setup action accepted."); }
 catch (InvalidOperationException e) when (e.Message.Contains("supported build tool")) { }
 try { core.Call(Request.Types.Operation.ToolSetupStart, toolSetup: new ToolSetupOptions { ToolId = "meson", PythonPath = @"relative\python.exe", DestinationRoot = Path.GetTempPath() }); throw new Exception("Invalid explicit Python selection accepted."); }

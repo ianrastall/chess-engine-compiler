@@ -1,0 +1,11 @@
+{
+  "engine": "plentychess",
+  "sourceRef": "b-v8.0.0",
+  "msysRoot": "C:/msys64",
+  "outputRoot": "D:/Chess engine builds",
+  "architecture": "bmi2",
+  "autoArchitecture": true,
+  "jobs": 4,
+  "pgo": false,
+  "strip": true
+}

@@ -23,6 +23,7 @@ pub mod github;
 pub mod hardware;
 mod igel;
 mod lc0;
+mod nnue_batch;
 mod obsidian;
 mod reckless;
 pub mod tools;
@@ -82,6 +83,7 @@ pub fn defaults(engine: &str) -> BuildOptions {
         "caissa" => caissa::defaults(),
         "alexandria" => alexandria::defaults(),
         "avalanche" => avalanche::defaults(),
+        "plentychess" | "stormphrax" | "viridithas" => nnue_batch::defaults(engine),
         _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
@@ -100,6 +102,9 @@ fn engine_name(engine: &str) -> &'static str {
         "caissa" => "Caissa",
         "alexandria" => "Alexandria",
         "avalanche" => "Avalanche",
+        "plentychess" => "PlentyChess",
+        "stormphrax" => "Stormphrax",
+        "viridithas" => "Viridithas",
         _ => "Stockfish",
     }
 }
@@ -160,6 +165,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     if resolved.auto_architecture {
         match resolved.engine.as_str() {
             "avalanche" => resolved.architecture = "native".into(),
+            "plentychess" | "stormphrax" | "viridithas" => {
+                resolved.architecture = nnue_batch::recommended(&resolved.engine);
+            }
             "stockfish" => resolved.architecture = hardware::detect().recommended,
             "berserk" => resolved.architecture = hardware::detect().berserk_recommended,
             "obsidian" => resolved.architecture = hardware::detect().obsidian_recommended,
@@ -181,6 +189,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
             | "caissa"
             | "alexandria"
             | "avalanche"
+            | "plentychess"
+            | "stormphrax"
+            | "viridithas"
     ) {
         return Err("Select a supported engine.".into());
     }
@@ -204,6 +215,9 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     }
     if options.engine == "lc0" {
         return lc0::plan(options);
+    }
+    if let Some(spec) = nnue_batch::spec(&options.engine) {
+        return spec.plan(options);
     }
     if options.engine == "berserk" {
         return berserk::plan(options);
@@ -605,6 +619,9 @@ fn build(
     }
     if options.engine == "lc0" {
         return lc0::build(options, &job, shared, cancel);
+    }
+    if let Some(spec) = nnue_batch::spec(&options.engine) {
+        return spec.build(options, &job, shared, cancel);
     }
     if options.engine == "berserk" {
         return berserk::build(options, &job, shared, cancel);

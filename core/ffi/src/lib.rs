@@ -168,6 +168,9 @@ pub unsafe extern "C" fn cec_call(
                     igel_choices: h.igel_choices,
                     cpp_recommended: h.cpp_recommended,
                     cpp_choices: h.cpp_choices,
+                    plentychess_choices: h.plentychess_choices,
+                    plentychess_recommended: h.plentychess_recommended,
+                    stormphrax_choices: h.stormphrax_choices,
                 });
                 Ok(())
             }

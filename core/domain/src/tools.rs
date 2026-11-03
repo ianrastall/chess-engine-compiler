@@ -88,6 +88,16 @@ pub fn catalog(o: &SetupOptions) -> Vec<Tool> {
     let meson_root = Path::new(&o.destination_root).join("lc0");
     let specs = [
         (
+            "clang",
+            "C/C++ (MSYS2 Clang and LLVM)",
+            (super::nnue_batch::clang_tools_present(msys)
+                && msys.join("ucrt64/bin/llvm-profdata.exe").is_file())
+            .then(|| msys.to_path_buf()),
+            "Installs UCRT64 Clang, LLD, LLVM profiling tools and runtime, GCC C++ headers, binutils, make and curl in the selected MSYS2 root. Run MSYS2's full update first if its package database is out of date.",
+            "https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-clang",
+            msys.join("usr/bin/bash.exe").is_file(),
+        ),
+        (
             "gcc",
             "C/C++ (MSYS2 GCC packages)",
             gcc.then(|| msys.to_path_buf()),
@@ -238,7 +248,7 @@ fn install(
         return Ok("Installer finished. Complete any installer prompts, then restart this app and check tool detection. A C++ workload must be selected in the Visual Studio installer.".into());
     }
     match o.tool_id.as_str() {
-        "gcc" => {
+        "gcc" | "clang" => {
             let msys = Path::new(&o.msys_root);
             if !msys.is_absolute() || !msys.join("usr/bin/bash.exe").is_file() {
                 return Err("Select the installed MSYS2 root in the engine form first.".into());
@@ -252,10 +262,46 @@ fn install(
                     )),
             )
             .map_err(|e| e.to_string())?;
-            run(Command::new(msys.join("usr/bin/bash.exe")).args(["--noprofile", "--norc", "-c", "exec pacman -S --needed --noconfirm git make curl wget coreutils mingw-w64-ucrt-x86_64-gcc"])
-                .env("PATH", path).env("MSYSTEM", "UCRT64").env("CHERE_INVOKING", "1"), shared, cancel, Duration::from_secs(3600), None)?;
-            if !toolchain_valid(msys) {
-                return Err("Package setup finished but UCRT64 GCC is incomplete. Review the saved log and MSYS2 update instructions.".into());
+            let mut packages = vec![
+                "git",
+                "make",
+                "curl",
+                "wget",
+                "coreutils",
+                "mingw-w64-ucrt-x86_64-gcc",
+            ];
+            if o.tool_id == "clang" {
+                packages.extend([
+                    "mingw-w64-ucrt-x86_64-clang",
+                    "mingw-w64-ucrt-x86_64-lld",
+                    "mingw-w64-ucrt-x86_64-llvm-tools",
+                    "mingw-w64-ucrt-x86_64-compiler-rt",
+                ]);
+            }
+            run(
+                Command::new(msys.join("usr/bin/bash.exe"))
+                    .args([
+                        "--noprofile",
+                        "--norc",
+                        "-c",
+                        "exec pacman -S --needed --noconfirm \"$@\"",
+                        "cec",
+                    ])
+                    .args(packages)
+                    .env("PATH", path)
+                    .env("MSYSTEM", "UCRT64")
+                    .env("CHERE_INVOKING", "1"),
+                shared,
+                cancel,
+                Duration::from_secs(3600),
+                None,
+            )?;
+            if !toolchain_valid(msys)
+                || (o.tool_id == "clang"
+                    && (!super::nnue_batch::clang_tools_present(msys)
+                        || !msys.join("ucrt64/bin/llvm-profdata.exe").is_file()))
+            {
+                return Err("The UCRT64 compiler setup is incomplete. Review the saved log and MSYS2 update instructions.".into());
             }
         }
         "meson" => {

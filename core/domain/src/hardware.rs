@@ -17,6 +17,9 @@ pub struct Hardware {
     pub igel_choices: Vec<String>,
     pub cpp_recommended: String,
     pub cpp_choices: Vec<String>,
+    pub plentychess_choices: Vec<String>,
+    pub plentychess_recommended: String,
+    pub stormphrax_choices: Vec<String>,
 }
 
 pub fn detect() -> Hardware {
@@ -153,6 +156,26 @@ pub fn detect() -> Hardware {
         "x86-64"
     }
     .into();
+    // Both upstream Haswell targets may emit the full x86-64-v3 instruction set.
+    let haswell = cpp_choices.iter().any(|id| id == "bmi2")
+        && std::is_x86_feature_detected!("f16c")
+        && std::is_x86_feature_detected!("lzcnt")
+        && std::is_x86_feature_detected!("movbe");
+    let mut plentychess_choices = Vec::new();
+    let mut stormphrax_choices = Vec::new();
+    if obs_avx2 {
+        stormphrax_choices.push("native".into());
+    }
+    if haswell {
+        plentychess_choices.extend(["avx2".into(), "bmi2".into()]);
+        stormphrax_choices.push("avx2-bmi2".into());
+    }
+    let plentychess_recommended = if haswell {
+        if slow_bmi2 { "avx2" } else { "bmi2" }
+    } else {
+        ""
+    }
+    .into();
     Hardware {
         cpu_name: String::from_utf8_lossy(&brand)
             .trim_matches(['\0', ' '])
@@ -183,6 +206,9 @@ pub fn detect() -> Hardware {
         igel_choices,
         cpp_recommended,
         cpp_choices,
+        plentychess_choices,
+        plentychess_recommended,
+        stormphrax_choices,
         recommended,
         choices,
     }

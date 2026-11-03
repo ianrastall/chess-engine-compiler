@@ -40,10 +40,12 @@ public sealed partial class ToolSetupView : UserControl, IAsyncDisposable
             "lc0" => "Lc0 requires Git, Python with Meson/Ninja, and Microsoft C++ build tools. CUDA additionally needs the NVIDIA toolkit and a compatible driver.",
             "reckless" => "Reckless requires Rust/Cargo, Microsoft C++ build tools, Git and curl.",
             "avalanche" => "Avalanche requires Git and Zig 0.17.0. The private Zig installation can be used immediately without restarting.",
+            "plentychess" or "stormphrax" => "The selected engine requires MSYS2 UCRT64 Clang, LLD, make, Git and curl. PlentyChess PGO also needs the LLVM profiling tools and runtime.",
+            "viridithas" => "Viridithas requires stable MSVC Rust, Microsoft C++ build tools, Git and curl. For PGO, explicitly run rustup component add llvm-tools --toolchain stable-x86_64-pc-windows-msvc.",
             _ => "The selected engine requires MSYS2 with UCRT64 GCC, make, Git and download tools.",
         };
         SelectedPaths.Text = $"MSYS2 root: {(o.MsysRoot.Length > 0 ? o.MsysRoot : "select it in the Compile form")}\nPython: {(o.PythonPath.Length > 0 ? o.PythonPath : "detected on PATH")}";
-        var preferred = o.Engine switch { "avalanche" => "zig", "reckless" => "rust", "lc0" => "meson", _ => "gcc" };
+        var preferred = o.Engine switch { "avalanche" => "zig", "reckless" or "viridithas" => "rust", "lc0" => "meson", "plentychess" or "stormphrax" => "clang", _ => "gcc" };
         _ = RefreshCatalogAsync(preferred);
     }
 

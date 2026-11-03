@@ -115,6 +115,16 @@ public sealed partial class MainWindow
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "avalanche.png"));
         SelectEngine("alexandria"); Require(Options().Equals(alexandria) && ZigOptions.Visibility == Visibility.Collapsed, "Avalanche changed Alexandria settings.");
         SelectEngine("avalanche"); Require(Options().Equals(avalanche), "Avalanche options were not retained.");
+        SelectEngine("plentychess");
+        Require(Model.SourceRef == "b-v8.0.0" && Pgo.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Visible, "PlentyChess controls are wrong.");
+        Require(Options().Architecture == _hardware.PlentychessRecommended, "PlentyChess recommendation is wrong.");
+        var plentyChess = Options();
+        SelectEngine("stormphrax");
+        Require(Model.SourceRef == "v8.0.0" && Pgo.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Visible, "Stormphrax controls are wrong.");
+        SelectEngine("viridithas");
+        Require(Model.SourceRef == "v20.0.0" && SourceRef.IsReadOnly && SourceBrowser.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Collapsed && Pgo.Visibility == Visibility.Visible, "Viridithas controls are wrong.");
+        Require(Options().Architecture == "native", "Viridithas target is wrong.");
+        SelectEngine("plentychess"); Require(Options().Equals(plentyChess) && SourceBrowser.Visibility == Visibility.Visible && !SourceRef.IsReadOnly, "PlentyChess settings were not restored.");
         SelectEngine("lc0");
         Model.SourceRef = "v0.32.1";
         _logPresenter.ShowPreview("UI verification example\n\n$ \"git.exe\" fetch \"v0.32.1\"\n$ \"python.exe\" -m mesonbuild.mesonmain compile\nwarning: example diagnostic\nerror: example diagnostic\n\nNo build is running in this verification window.");
@@ -140,7 +150,7 @@ public sealed partial class MainWindow
         await ToolSetupPane.VerifyControlsAsync();
         ToolSetupPane.StartBringIntoView(); Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "build-tools.png"));
-        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, switching across all nine engines, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, switching across all twelve engines, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

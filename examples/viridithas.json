@@ -1,0 +1,10 @@
+{
+  "engine": "viridithas",
+  "sourceRef": "v20.0.0",
+  "outputRoot": "D:/Chess engine builds",
+  "architecture": "native",
+  "autoArchitecture": true,
+  "jobs": 4,
+  "pgo": false,
+  "strip": true
+}

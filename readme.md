@@ -1,6 +1,6 @@
 # Chess Engine Compiler
 
-Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.6 supports Alexandria, Avalanche, Berserk, Caissa, Igel, Lc0, Obsidian, Reckless and Stockfish, GitHub version browsing and separate binary downloads.
+Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.7 supports Alexandria, Avalanche, Berserk, Caissa, Igel, Lc0, Obsidian, PlentyChess, Reckless, Stockfish, Stormphrax and Viridithas. Browse upstream GitHub versions and download release binaries in the separate Downloads area.
 
 Select an engine and an official tag, branch or commit, choose build options and compile. The GUI shows the current phase and live output, can cancel compilation, and saves the executable, exact source commit, compiler version, settings, source archive and full log. Export build scripts creates PowerShell and batch entry points with a standalone CLI and the selected configuration.
 
@@ -60,6 +60,8 @@ Select **Igel** for a GCC build of 3.8.0 with its standard embedded NNUE and Syz
 
 ## Versions, architecture and GitHub
 
+PlentyChess and Stormphrax use MSYS2 UCRT64 Clang and LLD. PlentyChess supports optional LLVM PGO. Viridithas uses stable Windows MSVC Rust, with optional PGO using the same Rust toolchain's LLVM profiler. Each embeds its network and runs a standalone benchmark. See [PlentyChess, Stormphrax and Viridithas](docs/plentychess-stormphrax-viridithas.md).
+
 The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
 
 Engine selectors are alphabetical and retain settings by engine ID. Stockfish, Berserk, Caissa, Alexandria, Obsidian, Reckless and Igel detect this CPU and offer only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
@@ -78,7 +80,7 @@ The separate **Downloads** work area lists release assets and authenticated work
 .\chess-engine-compiler.exe build .\stockfish.json
 ```
 
-Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [example configurations](examples) for all nine engines document editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts.
+Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [example configurations](examples) document editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts.
 
 ## Develop
 

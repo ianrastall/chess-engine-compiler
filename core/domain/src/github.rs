@@ -131,6 +131,9 @@ impl Drop for Worker {
 }
 
 fn repository(engine: &str) -> Result<&'static str> {
+    if let Some(spec) = super::nnue_batch::spec(engine) {
+        return Ok(spec.repository);
+    }
     match engine {
         "stockfish" => Ok("official-stockfish/Stockfish"),
         "lc0" => Ok("LeelaChessZero/lc0"),

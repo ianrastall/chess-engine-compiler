@@ -7,6 +7,7 @@ Open **Settings > Build tools**, or **Build > Set up build tools**. The page lis
 | Git for Windows | WinGet `Git.Git`, interactive installer |
 | MSYS2 | WinGet `MSYS2.MSYS2`, interactive installer; select its root in the Compile form afterward |
 | C/C++ GCC packages | In the selected MSYS2 root, `pacman -S --needed --noconfirm git make curl wget coreutils mingw-w64-ucrt-x86_64-gcc`; update MSYS2 first using its official guide if its database is out of date |
+| C/C++ Clang and LLVM | Adds UCRT64 Clang, LLD, LLVM tools and compiler-rt to the compiler packages in the selected MSYS2 root. PlentyChess PGO uses the profiling runtime and `llvm-profdata`. |
 | Rust | WinGet `Rustlang.Rustup`, interactive installer; choose MSVC and install C++ build tools |
 | Python | WinGet `Python.Python.3.14`, interactive installer; existing selected Python 3 installations can be used |
 | Meson/Ninja | Create the app-private `tools/lc0` virtual environment, then pip-install Meson 1.12.1 and Ninja 1.13.2 there; global Python packages are unchanged |
