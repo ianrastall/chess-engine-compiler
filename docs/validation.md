@@ -160,3 +160,29 @@ The existing platform limits remain: unsigned packages, no clean-machine trust t
 Remote acceptance: [Windows Actions run 40775349261](https://github.com/ianrastall/chess-engine-compiler/actions/runs/40775349261) completed successfully for `39b7685`, including the full build, fresh installation, repeated-install upgrade, uninstall/data preservation, final reinstall and Start Menu registration. The workflow uploaded installer/portable artifacts and checksums. This is a completed remote result, not an inference from local success.
 
 [Release v0.6.0](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v0.6.0) is published against the tested `39b768564293b3bd519a7d89402b8d75332c12ec` commit. GitHub's uploaded installer and zip SHA-256 digests match local `dist/SHA256SUMS.txt`: installer `a117ea00a90be6bb8462ed4b1e5b7e792f1dcbbd0795cf6dd448838d5b62743c`, portable `927c68f0cb8c772ec95366099a0440f251e7b11653fa1389e9c0f0c519868cc4`. Documentation updates after that commit do not alter the released binaries.
+
+## Version 0.7.0 — PlentyChess, Stormphrax and Viridithas
+
+On 3 November 2026, six real CLI source builds ran on Ian's Windows 11 x64 machine with an Intel Core i7-10700. The C++ jobs used MSYS2 UCRT64 Clang and LLD 22.1.8. PlentyChess used the matching MSYS2 LLVM tools and profiling runtime. Viridithas used stable MSVC Rust 1.97.0 with LLVM 22.1.6 and its matching Rust LLVM tools. Logs, jobs and a machine-readable result summary are under the ignored `target/first batch validation` directory.
+
+| Engine | Source commit | Verified configurations | Reference nodes |
+| --- | --- | --- | ---: |
+| PlentyChess `b-v8.0.0` | `50ad9f1b523063cbbbf599fe0547f42870fe2906` | Regular `avx2`, LLVM PGO `bmi2` | 3,939,470 |
+| Stormphrax `v8.0.0` | `582965517ed2032d41a6b4cd6c2e66b1b934e2ad` | Regular `native` and `avx2-bmi2` | 5,933,306 |
+| Viridithas `v20.0.0` | `0631113e2215714c54d397cce9a8caebc5e6f8ee` | Regular and LLVM PGO `native` | 3,749,873 |
+
+All six executables passed UCI and matched the reference node counts from their source commits. Each result ran from its own folder with System32-only PATH. PE import inspection found only Windows system dependencies. The result manifests, source archives, licenses and full logs were checked. The three network files matched the published SHA-256 digests, recomputed independently from the job files. Both PGO jobs retained nonempty merged profiles. The Clang log and Cargo fingerprint confirmed the optimized rebuilds used those profiles. Both Viridithas results retained the resolved Cargo lockfile.
+
+The first Viridithas attempts compiled and reached UCI verification, but the previous input strategy closed stdin while commands were still queued. The engine treats EOF as a shutdown signal. The new verifier waits for `uciok` before sending `isready`, then waits for `readyok` before sending `quit`. Fresh regular and PGO Viridithas builds and fresh PlentyChess and Stormphrax jobs passed through that verifier.
+
+The release pipeline ran formatting, strict Clippy, 19 domain tests, the ABI test, managed/native integration and the real WinUI log and twelve-engine form checks. The pinned Jupiter.UI project emitted its existing CS1573 documentation warning. Authenticated GitHub catalog requests and exported batch previews passed for all three additions. The LLVM tools package was installed explicitly for validation. The typed Clang setup action detected the resulting installation and exited without running a package install.
+
+Coverage is limited to the pinned releases, the stated build targets and this CPU. Other C++ refs require compatible make rules and network metadata. Stormphrax exposes regular builds. Viridithas exposes v20.0.0 with its verified network, without Syzygy. PGO verification confirms profiles were applied and the resulting engines matched the source benchmarks. Speed and playing-strength comparisons were outside this validation.
+
+The self-contained installer upgraded Ian's installation to build `0.7.0+bfb32a0590cdec941d90ab43f5dbf63798e691ad`. Four settings files retained their SHA-256 hashes. Windows registered the top-level **Chess Engine Compiler** Start Menu entry as `Jupiter.ChessEngineCompiler`. Launching its shortcut opened the installed executable. The installed CLI accepted the three verified build plans. Local installation evidence is in the ignored validation directory.
+
+The installed CLI also completed a fresh Viridithas PGO source build, verified its network digest and matched the 3,749,873-node benchmark. The installed WinUI executable passed two isolated form-test runs and exited cleanly both times.
+
+The published installer, portable ZIP and checksum file match the local artifacts byte for byte by SHA-256. The installer digest is `faa74093264dcadd52fbcbc21272140398f6a302f1ef72316cf497c035c72b0b`. The portable digest is `d7838e0f9cf739c059c6e588cefe651315241e1f4f8c14accb87255d69d4a398`. The tag resolves to the installed build's source commit. [Release v0.7.0](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v0.7.0)
+
+Windows CI passed for the release commit on its second attempt, including installation, upgrade, uninstall, reinstallation and Start Menu registration on a fresh runner. The first attempt produced a passing WinUI form report and then exited with a native access violation during shutdown. The retry and the local test runs exited cleanly. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/41619040857)

@@ -1,6 +1,6 @@
 # Chess Engine Compiler handoff
 
-Repository: https://github.com/ianrastall/chess-engine-compiler. Principal checkout: `D:/jupiter/chess-engine-compiler`. Version: 0.6.0. The old StockfishCompiler checkout is unchanged. Git history and release tags identify the exact source commit; About reports the managed build identity.
+Version 0.7.0 lives in `D:/jupiter/chess-engine-compiler`. Release tags identify the exact source commit. About shows the installed build identity. [GitHub repository](https://github.com/ianrastall/chess-engine-compiler)
 
 ## Build and verify
 
@@ -40,3 +40,5 @@ Version 0.5 adds independently verified adapters for Obsidian (MSYS2 GCC, regula
 Version 0.6 adds Caissa 2.0, Alexandria v9.1.0 and Avalanche v5.0.0, each verified by fresh optimized and supported baseline/AVX2 source builds. All nine engines share alphabetical selectors with stable IDs. New adapters expose regular builds only; Alexandria's mismatching scalar baseline is rejected. Avalanche requires Zig 0.17.0 and checks bench.nodes. The source-pinned shared Jupiter.UI snapshot remains mandatory in both local and CI builds.
 
 Settings > Build tools uses Rust-owned, explicit setup operations through additive protobuf operations/fields (C ABI v1). WinGet installs are allowlisted and interactive, Zig is downloaded/hash-checked privately, Meson/Ninja use a private venv, GCC packages use the selected MSYS2 root, and CUDA uses official guided downloads. Tools/setup logs survive upgrades and uninstall. The GUI prevents build/setup overlap and asks before closing active work; elevated installers may leave partial installations after cancellation. See docs/build-tools.md and docs/validation.md for validation limits.
+
+Version 0.7 adds PlentyChess and Stormphrax through MSYS2 UCRT64 Clang and LLD, and Viridithas through stable Windows MSVC Rust. PlentyChess and Viridithas support optional LLVM PGO. The new UCI verifier keeps stdin open through the handshake. The pinned Viridithas release resolves and saves a Cargo lockfile for each job. See the [engine guide](docs/plentychess-stormphrax-viridithas.md) and [build evidence](docs/validation.md).
