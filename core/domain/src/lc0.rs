@@ -93,6 +93,11 @@ pub(super) fn plan(o: &BuildOptions) -> Result<Plan> {
     if git_executable(Path::new("")).is_none() {
         return Err("Install Git for Windows and restart the app.".into());
     }
+    if o.release_id != 0 && find_tool("curl.exe").is_none() {
+        return Err(
+            "Windows curl.exe is required for the verified Lc0 dependency downloads.".into(),
+        );
+    }
     Ok(Plan { options: o.clone(), steps: vec![
         format!("Fetch LeelaChessZero/lc0 at {} and its pinned lczero-common submodule into a new job", o.source_ref),
         "Load the selected MSVC x64 environment; check Python, Meson and Ninja without changing installed tools".into(),
@@ -213,7 +218,14 @@ pub(super) fn build(
     let git_run = |args: &[&str]| {
         run(
             Command::new(&git)
-                .args(["-c", "core.hooksPath=NUL"])
+                .args([
+                    "-c",
+                    "core.hooksPath=NUL",
+                    "-c",
+                    "core.autocrlf=false",
+                    "-c",
+                    "core.longpaths=true",
+                ])
                 .args(args)
                 .current_dir(&source)
                 .env("GIT_TERMINAL_PROMPT", "0"),
@@ -233,7 +245,10 @@ pub(super) fn build(
     let commit = git_run(&["rev-parse", "HEAD"])?;
     let submodules = git_run(&["submodule", "status", "--recursive"])?;
     phase(shared, "Check MSVC, Python, Meson and Ninja");
-    let env = environment(o, cancel)?;
+    let mut env = environment(o, cancel)?;
+    if o.release_id != 0 {
+        env.retain(|(key, _)| !key.eq_ignore_ascii_case("MESON_PACKAGE_CACHE_DIR"));
+    }
     // Command's Debug formatter includes explicit env values, so attach the
     // tool environment only in the runner after logging the executable/args.
     let tool = |command: &mut Command, timeout| {
@@ -254,8 +269,15 @@ pub(super) fn build(
     } else {
         PathBuf::from(&o.weights_path)
     };
+    let archives = if o.release_id != 0 {
+        fetch_wraps(&source, shared, cancel)?
+    } else {
+        Vec::new()
+    };
     phase(shared, "Configure Lc0 release build");
-    let build_dir = source.join("build");
+    // MSVC object and PDB paths can exceed MAX_PATH even when the source fits.
+    let workspace = short_workspace(job)?;
+    let build_dir = workspace.path().join("b");
     let mut setup = Command::new(&o.python_path);
     setup
         .args(["-m", "mesonbuild.mesonmain", "setup"])
@@ -268,6 +290,11 @@ pub(super) fn build(
             "-Db_vscrt=mt",
         ])
         .args(&flags);
+    if o.release_id != 0 {
+        setup
+            .arg("--wrap-mode=nodownload")
+            .env_remove("MESON_PACKAGE_CACHE_DIR");
+    }
     // Upstream's native_arch option uses -march=native only for non-MSVC.
     let cpu_target = if o.release_id != 0 && !hardware::detect().plentychess_choices.is_empty() {
         setup.arg("-Dcpp_args=/arch:AVX2");
@@ -286,7 +313,12 @@ pub(super) fn build(
                 Path::new(&o.cuda_root).join("include").display()
             ));
     }
-    tool(&mut setup, Duration::from_secs(1200))?;
+    let configured = tool(&mut setup, Duration::from_secs(1200));
+    let _ = fs::copy(
+        build_dir.join("meson-logs/meson-log.txt"),
+        job.join("meson-log.txt"),
+    );
+    configured?;
     phase(shared, "Compile Lc0");
     tool(
         Command::new(&o.python_path)
@@ -419,13 +451,34 @@ pub(super) fn build(
         result.join("meson-compilers.json"),
     )
     .map_err(|e| e.to_string())?;
-    let manifest = serde_json::json!({"schemaVersion": 3, "engine": "lc0", "sourceUrl": repository, "commit": commit.trim(), "submodules": submodules.trim(), "options": o, "recipe": recipe.release.id, "actualArchitecture": cpu_target, "mesonFlags": flags, "python": python_version.trim(), "meson": meson_version.trim(), "ninja": ninja_version.trim(), "weightsFile": weights_name, "weightsSha256": weights_hash, "weightsUrl": o.weights_path.is_empty().then_some(&recipe.network.url), "runtimeFiles": runtime_files, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar", "dependencyArchive": "dependencies.tar"});
+    let manifest = serde_json::json!({"schemaVersion": 3, "engine": "lc0", "sourceUrl": repository, "commit": commit.trim(), "submodules": submodules.trim(), "options": o, "recipe": recipe.release.id, "actualArchitecture": cpu_target, "mesonFlags": flags, "dependencyArchives": archives, "python": python_version.trim(), "meson": meson_version.trim(), "ninja": ninja_version.trim(), "weightsFile": weights_name, "weightsSha256": weights_hash, "weightsUrl": o.weights_path.is_empty().then_some(&recipe.network.url), "runtimeFiles": runtime_files, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar", "dependencyArchive": "dependencies.tar"});
     fs::write(
         result.join("build.json"),
         serde_json::to_vec_pretty(&manifest).unwrap(),
     )
     .map_err(|e| e.to_string())?;
     Ok(output.to_string_lossy().into())
+}
+
+fn short_workspace(job: &Path) -> Result<tempfile::TempDir> {
+    let mut builder = tempfile::Builder::new();
+    builder.prefix("cec-");
+    let temp = std::env::temp_dir();
+    let mut ancestors: Vec<_> = job.ancestors().collect();
+    if ancestors.last().is_some_and(|root| temp.starts_with(root))
+        && let Ok(workspace) = builder.tempdir_in(temp)
+    {
+        return Ok(workspace);
+    }
+    // Keep Meson's source and build trees on the same drive, including when
+    // the job folder and Windows TEMP are on different volumes.
+    ancestors.reverse();
+    for parent in ancestors {
+        if let Ok(workspace) = builder.tempdir_in(parent) {
+            return Ok(workspace);
+        }
+    }
+    Err("Could not create a short Lc0 build directory on the output drive.".into())
 }
 
 fn default_network(
@@ -452,12 +505,68 @@ fn default_network(
             }
         }
     }
-    let curl =
-        find_tool("curl.exe").ok_or("Install curl or select a local Lc0 network in Advanced.")?;
     phase(shared, "Download the Lc0 recipe network");
+    curl_download(&network.url, &weights, network.bytes, shared, cancel)?;
+    if !matches(&weights) {
+        return Err("The Lc0 recipe network did not match its expected size and SHA-256.".into());
+    }
+    Ok(weights)
+}
+
+fn fetch_wraps(
+    source: &Path,
+    shared: &Arc<Mutex<Shared>>,
+    cancel: &AtomicBool,
+) -> Result<Vec<serde_json::Value>> {
+    phase(shared, "Fetch and verify Lc0 dependency archives");
+    let package_cache = source.join("subprojects/packagecache");
+    fs::create_dir_all(&package_cache).map_err(|e| e.to_string())?;
+    let mut records = Vec::new();
+    for wrap in &recipes::LC0.archive_wraps {
+        for archive in recipes::wrap_archives(&source.join(format!("subprojects/{wrap}.wrap")))? {
+            let path = package_cache.join(&archive.filename);
+            let mut last_error = String::new();
+            let mut verified = None;
+            for url in archive.urls {
+                match curl_download(&url, &path, 256 * 1024 * 1024, shared, cancel) {
+                    Ok(()) if recipes::sha256(&path).is_ok_and(|hash| hash == archive.sha256) => {
+                        verified = Some(url);
+                        break;
+                    }
+                    Ok(()) => last_error = "SHA-256 did not match the source wrap.".into(),
+                    Err(error) => last_error = error,
+                }
+                if cancel.load(Ordering::SeqCst) {
+                    return Err("Dependency download cancelled.".into());
+                }
+            }
+            let url = verified.ok_or_else(|| {
+                format!(
+                    "Could not verify Lc0 dependency {}: {last_error}",
+                    archive.filename
+                )
+            })?;
+            records.push(
+                serde_json::json!({"file": archive.filename, "sha256": archive.sha256, "url": url}),
+            );
+        }
+    }
+    Ok(records)
+}
+
+fn curl_download(
+    url: &str,
+    path: &Path,
+    max_bytes: u64,
+    shared: &Arc<Mutex<Shared>>,
+    cancel: &AtomicBool,
+) -> Result<()> {
+    let curl =
+        find_tool("curl.exe").ok_or("Windows curl.exe is required for this Lc0 download.")?;
     run(
         Command::new(curl)
             .args([
+                "--disable",
                 "--fail",
                 "--location",
                 "--proto",
@@ -467,20 +576,17 @@ fn default_network(
                 "--retry",
                 "2",
                 "--max-filesize",
-                &network.bytes.to_string(),
+                &max_bytes.to_string(),
                 "--output",
             ])
-            .arg(&weights)
-            .arg(&network.url),
+            .arg(path)
+            .arg(url),
         shared,
         cancel,
         Duration::from_secs(600),
         None,
     )?;
-    if !matches(&weights) {
-        return Err("The Lc0 recipe network did not match its expected size and SHA-256.".into());
-    }
-    Ok(weights)
+    Ok(())
 }
 
 fn run_with_environment(

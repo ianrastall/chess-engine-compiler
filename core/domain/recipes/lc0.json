@@ -6,6 +6,7 @@
   "minimumVersion": [0, 32, 0],
   "optionFiles": ["meson.options", "meson_options.txt"],
   "requiredOptions": ["blas", "plain_cuda", "default_backend"],
+  "archiveWraps": ["abseil-cpp", "eigen", "zlib"],
   "optionalFlags": {
     "gtest": "false",
     "openblas": "false",

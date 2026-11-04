@@ -40,6 +40,7 @@ pub(super) struct Lc0 {
     option_files: Vec<String>,
     required_options: Vec<String>,
     optional_flags: BTreeMap<String, String>,
+    pub archive_wraps: Vec<String>,
     pub network: Network,
 }
 
@@ -49,6 +50,87 @@ pub(super) struct Network {
     pub url: String,
     pub sha256: String,
     pub bytes: u64,
+}
+
+pub(super) struct WrapArchive {
+    pub filename: String,
+    pub sha256: String,
+    pub urls: Vec<String>,
+}
+
+pub(super) fn wrap_archives(path: &Path) -> Result<Vec<WrapArchive>> {
+    let file =
+        fs::read_to_string(path).map_err(|e| needs_recipe(format!("{}: {e}", path.display())))?;
+    let mut lines = file.lines().map(str::trim);
+    if lines.find(|line| !line.is_empty() && !line.starts_with('#')) != Some("[wrap-file]") {
+        return Err(needs_recipe(format!(
+            "{} is no longer an archive wrap.",
+            path.display()
+        )));
+    }
+    let fields: BTreeMap<_, _> = lines
+        .take_while(|line| !line.starts_with('['))
+        .filter_map(|line| {
+            line.split_once('=')
+                .map(|(name, value)| (name.trim(), value.trim()))
+        })
+        .collect();
+    let mut archives = Vec::new();
+    for kind in ["source", "patch"] {
+        let lookup = |field| fields.get(format!("{kind}_{field}").as_str()).copied();
+        if kind == "patch"
+            && lookup("filename").is_none()
+            && lookup("url").is_none()
+            && lookup("hash").is_none()
+        {
+            continue;
+        }
+        let (Some(filename), Some(hash), Some(url)) =
+            (lookup("filename"), lookup("hash"), lookup("url"))
+        else {
+            return Err(needs_recipe(format!(
+                "{} has incomplete {kind} archive metadata.",
+                path.display()
+            )));
+        };
+        if filename.is_empty()
+            || filename.starts_with('.')
+            || !filename
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
+            || hash.len() != 64
+            || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+        {
+            return Err(needs_recipe(format!(
+                "{} has an unrecognized {kind} archive name or digest.",
+                path.display()
+            )));
+        }
+        let urls = [Some(url), lookup("fallback_url")]
+            .into_iter()
+            .flatten()
+            .map(|url| {
+                // The 0.32 wraps still use HTTP for zlib's fossil archive.
+                url.strip_prefix("http://zlib.net/fossils/").map_or_else(
+                    || url.to_owned(),
+                    |file| format!("https://zlib.net/fossils/{file}"),
+                )
+            })
+            .filter(|url| url.starts_with("https://"))
+            .collect::<Vec<_>>();
+        if urls.is_empty() {
+            return Err(needs_recipe(format!(
+                "{} lacks a secure {kind} archive URL.",
+                path.display()
+            )));
+        }
+        archives.push(WrapArchive {
+            filename: filename.into(),
+            sha256: hash.to_ascii_lowercase(),
+            urls,
+        });
+    }
+    Ok(archives)
 }
 
 pub(super) static STOCKFISH: LazyLock<Stockfish> =
@@ -175,4 +257,31 @@ pub(super) fn sha256(path: &Path) -> Result<String> {
         return Err(format!("{} is empty.", path.display()));
     }
     Ok(format!("{:x}", digest.finalize()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrap_metadata_requires_safe_names_digests_and_https() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("zlib.wrap");
+        let hash = "a".repeat(64);
+        let contents = format!(
+            "[wrap-file]\nsource_url = http://zlib.net/fossils/zlib.tar.gz\nsource_filename = zlib.tar.gz\nsource_hash = {hash}\n"
+        );
+        fs::write(&path, &contents).unwrap();
+        let archives = wrap_archives(&path).unwrap();
+        assert_eq!(archives[0].urls, ["https://zlib.net/fossils/zlib.tar.gz"]);
+        assert_eq!(archives[0].sha256, hash);
+        fs::write(&path, contents.replace("= zlib.tar.gz", "= ../escape")).unwrap();
+        assert!(wrap_archives(&path).is_err());
+        fs::write(
+            &path,
+            contents.replace("http://zlib.net", "http://example.test"),
+        )
+        .unwrap();
+        assert!(wrap_archives(&path).is_err());
+    }
 }
