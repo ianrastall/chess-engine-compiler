@@ -210,9 +210,40 @@ pub(super) fn build(
     shared: &Arc<Mutex<Shared>>,
     cancel: &AtomicBool,
 ) -> Result<String> {
+    // MSVC applies legacy path limits to both compiler inputs and generated
+    // files. Keep both Meson trees short and retain the checkout with the job.
+    let workspace = short_workspace(job)?;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        build_in_workspace(o, job, workspace.path(), shared, cancel)
+    }));
+    let source = workspace.path().join("s");
+    if source.is_dir()
+        && let Err(error) = fs::rename(&source, job.join("source"))
+    {
+        let retained = workspace.keep();
+        let message = format!(
+            "Could not move the Lc0 checkout into the job: {error}. It remains in {}.",
+            retained.display()
+        );
+        shared.lock().unwrap().line(&message);
+        let _ = fs::write(job.join("source-location.txt"), message);
+    }
+    match result {
+        Ok(result) => result,
+        Err(panic) => std::panic::resume_unwind(panic),
+    }
+}
+
+fn build_in_workspace(
+    o: &BuildOptions,
+    job: &Path,
+    workspace: &Path,
+    shared: &Arc<Mutex<Shared>>,
+    cancel: &AtomicBool,
+) -> Result<String> {
     let recipe = &*recipes::LC0;
     let repository = format!("https://github.com/{}", recipe.release.repository);
-    let source = job.join("source");
+    let source = workspace.join("s");
     fs::create_dir(&source).map_err(|e| e.to_string())?;
     let git = git_executable(Path::new("")).ok_or("Git was not found")?;
     let git_run = |args: &[&str]| {
@@ -275,9 +306,7 @@ pub(super) fn build(
         Vec::new()
     };
     phase(shared, "Configure Lc0 release build");
-    // MSVC object and PDB paths can exceed MAX_PATH even when the source fits.
-    let workspace = short_workspace(job)?;
-    let build_dir = workspace.path().join("b");
+    let build_dir = workspace.join("b");
     let mut setup = Command::new(&o.python_path);
     setup
         .args(["-m", "mesonbuild.mesonmain", "setup"])
@@ -419,7 +448,7 @@ pub(super) fn build(
     git_run(&[
         "archive",
         "--format=tar",
-        "--output=../result/source.tar",
+        &format!("--output={}", result.join("source.tar").display()),
         "HEAD",
     ])?;
     // Include the downloaded dependency sources and their license files, not
