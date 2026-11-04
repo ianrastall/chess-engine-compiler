@@ -1,0 +1,11 @@
+{
+  "engine": "seer",
+  "sourceRef": "v2.8.0",
+  "msysRoot": "C:\\msys64",
+  "outputRoot": "C:\\Chess builds\\seer",
+  "architecture": "x86-64-v3",
+  "autoArchitecture": true,
+  "jobs": 4,
+  "pgo": false,
+  "strip": true
+}

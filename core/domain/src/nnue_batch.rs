@@ -2,6 +2,9 @@ use super::*;
 use sha2::{Digest, Sha256};
 
 const VIRI_COMMIT: &str = "0631113e2215714c54d397cce9a8caebc5e6f8ee";
+const PATRICIA_COMMIT: &str = "f1ee4273c6e6068bd6ec0d53ca91c1c391543f85";
+const KOIVISTO_COMMIT: &str = "2895237d7a4ff267752fb19852ce9868bdccb753";
+const SEER_COMMIT: &str = "f9b341ea1ffc79fde5acf7e6f382c3a4e29a8e19";
 const RUST_TARGET: &str = "x86_64-pc-windows-msvc";
 const RUST_TOOLCHAIN: &str = "stable-x86_64-pc-windows-msvc";
 
@@ -10,6 +13,9 @@ pub(super) enum Engine {
     PlentyChess,
     Stormphrax,
     Viridithas,
+    Patricia,
+    Koivisto,
+    Seer,
 }
 
 pub(super) struct Spec {
@@ -18,12 +24,21 @@ pub(super) struct Spec {
     tag: &'static str,
 }
 
+struct Network {
+    path: String,
+    url: Option<String>,
+    expected_hash: Option<&'static str>,
+}
+
 pub(super) fn spec(id: &str) -> Option<Spec> {
     use Engine::*;
     let (engine, repository, tag) = match id {
         "plentychess" => (PlentyChess, "Yoshie2000/PlentyChess", "b-v8.0.0"),
         "stormphrax" => (Stormphrax, "Ciekce/Stormphrax", "v8.0.0"),
         "viridithas" => (Viridithas, "cosmobobak/viridithas", "v20.0.0"),
+        "patricia" => (Patricia, "Adam-Kulju/Patricia", "5.1"),
+        "koivisto" => (Koivisto, "Luecx/Koivisto", "v9.0"),
+        "seer" => (Seer, "connormcmonigle/seer-nnue", "v2.8.0"),
         _ => return None,
     };
     Some(Spec {
@@ -45,9 +60,13 @@ pub(super) fn defaults(id: &str) -> BuildOptions {
 }
 
 pub(super) fn recommended(id: &str) -> String {
+    let hardware = hardware::detect();
     match id {
-        "plentychess" => hardware::detect().plentychess_recommended,
-        "stormphrax" if hardware::detect().stormphrax_choices.is_empty() => String::new(),
+        "plentychess" => hardware.plentychess_recommended,
+        "stormphrax" if hardware.stormphrax_choices.is_empty() => String::new(),
+        "patricia" | "seer" if !hardware.plentychess_choices.is_empty() => "x86-64-v3".into(),
+        "koivisto" if hardware.cpp_choices.iter().any(|target| target == "avx2") => "avx2".into(),
+        "patricia" | "seer" | "koivisto" => String::new(),
         _ => "native".into(),
     }
 }
@@ -66,16 +85,45 @@ pub(super) fn clang_tools_present(root: &Path) -> bool {
 }
 
 impl Spec {
+    fn pinned_commit(&self) -> Option<&'static str> {
+        match self.engine {
+            Engine::Viridithas => Some(VIRI_COMMIT),
+            Engine::Patricia => Some(PATRICIA_COMMIT),
+            Engine::Koivisto => Some(KOIVISTO_COMMIT),
+            Engine::Seer => Some(SEER_COMMIT),
+            _ => None,
+        }
+    }
+
+    fn uses_gcc(&self) -> bool {
+        matches!(self.engine, Engine::Koivisto | Engine::Seer)
+    }
+
     pub(super) fn plan(&self, o: &BuildOptions) -> Result<Plan> {
         let name = engine_name(&o.engine);
-        if self.engine == Engine::Stormphrax && o.pgo {
-            return Err("Stormphrax PGO is unavailable. Turn PGO off.".into());
+        if o.pgo && !matches!(self.engine, Engine::PlentyChess | Engine::Viridithas) {
+            return Err(format!("{name} PGO is unavailable. Turn PGO off."));
+        }
+        if let Some(commit) = self.pinned_commit()
+            && o.source_ref != self.tag
+            && o.source_ref != commit
+        {
+            return Err(format!(
+                "{name} supports release {} and its exact commit {commit}.",
+                self.tag
+            ));
         }
         let hardware = hardware::detect();
         let valid_target = match self.engine {
             Engine::PlentyChess => hardware.plentychess_choices.contains(&o.architecture),
             Engine::Stormphrax => hardware.stormphrax_choices.contains(&o.architecture),
             Engine::Viridithas => o.architecture == "native",
+            Engine::Patricia | Engine::Seer => {
+                o.architecture == "x86-64-v3" && !hardware.plentychess_choices.is_empty()
+            }
+            Engine::Koivisto => {
+                o.architecture == "avx2" && hardware.cpp_choices.contains(&o.architecture)
+            }
         };
         if !valid_target {
             return Err(format!(
@@ -87,19 +135,25 @@ impl Spec {
             return Err("Install Git for Windows or MSYS2 Git before building.".into());
         }
         let toolchain = if self.engine == Engine::Viridithas {
-            if o.source_ref != self.tag && o.source_ref != VIRI_COMMIT {
-                return Err(format!(
-                    "Viridithas has a verified network mapping for {}. Select that tag or commit {}.",
-                    self.tag, VIRI_COMMIT
-                ));
-            }
             if tools::find_tool("rustup.exe").is_none() || tools::find_tool("curl.exe").is_none() {
                 return Err("Install Rustup with stable Windows MSVC Rust, Microsoft C++ build tools, Windows SDK and curl. Restart the app after changing PATH.".into());
             }
             "Cargo / stable Windows MSVC Rust"
         } else {
-            if !root.is_absolute() || !clang_tools_present(root) {
-                return Err("Select an MSYS2 root with UCRT64 Clang and LLD, make and curl. See Settings > Build tools.".into());
+            let toolchain = if self.uses_gcc() {
+                "MSYS2 UCRT64 GCC"
+            } else {
+                "MSYS2 UCRT64 Clang / LLD"
+            };
+            let ready = if self.uses_gcc() {
+                toolchain_valid(root) && root.join("usr/bin/curl.exe").is_file()
+            } else {
+                clang_tools_present(root)
+            };
+            if !root.is_absolute() || !ready {
+                return Err(format!(
+                    "Select an MSYS2 root with {toolchain}, make and curl. See Settings > Build tools."
+                ));
             }
             if o.strip && !root.join("ucrt64/bin/strip.exe").is_file() {
                 return Err("Install UCRT64 binutils or turn off symbol stripping.".into());
@@ -107,14 +161,18 @@ impl Spec {
             if o.pgo && !root.join("ucrt64/bin/llvm-profdata.exe").is_file() {
                 return Err("Install the MSYS2 UCRT64 LLVM package (llvm-profdata) before enabling PlentyChess PGO.".into());
             }
-            "MSYS2 UCRT64 Clang / LLD"
+            toolchain
         };
         Ok(Plan {
             options: o.clone(),
             steps: vec![
                 format!("Fetch {} at {} into a new job folder", self.repository, o.source_ref),
-                "Fetch and hash the source-selected network; check its published digest for the verified release network".into(),
-                format!("Build {name} with {toolchain}, target {}, {} jobs", o.architecture, o.jobs),
+                if self.engine == Engine::Patricia { "Hash the three networks tracked in the verified source commit".into() } else { "Fetch and hash the source-selected network and check it against the expected digest when available".into() },
+                if matches!(self.engine, Engine::Patricia | Engine::Koivisto) {
+                    format!("Build {name} with {toolchain}, target {}", o.architecture)
+                } else {
+                    format!("Build {name} with {toolchain}, target {}, {} jobs", o.architecture, o.jobs)
+                },
                 if o.pgo { "Run the instrumented engine benchmark, merge LLVM profiles, then recompile with PGO".into() } else { "Use regular release compilation".into() },
                 "Verify standalone UCI and search, compare the source benchmark when available, and save source, license, manifest and log".into(),
             ],
@@ -132,13 +190,10 @@ impl Spec {
         let source = job.join("source");
         fs::create_dir(&source).map_err(|e| e.to_string())?;
         let execute = |command: &mut Command, seconds| {
-            run(
-                command.current_dir(&source),
-                shared,
-                cancel,
-                Duration::from_secs(seconds),
-                None,
-            )
+            if command.get_current_dir().is_none() {
+                command.current_dir(&source);
+            }
+            run(command, shared, cancel, Duration::from_secs(seconds), None)
         };
         let git = git_executable(root).ok_or("Git was not found.")?;
         let git_run = |args: &[&str]| {
@@ -157,45 +212,68 @@ impl Spec {
         git_run(&["fetch", "--depth=1", "origin", &o.source_ref])?;
         git_run(&["checkout", "--detach", "FETCH_HEAD"])?;
         let commit = git_run(&["rev-parse", "HEAD"])?;
+        if self
+            .pinned_commit()
+            .is_some_and(|pinned| pinned != commit.trim())
+        {
+            return Err(format!(
+                "The resolved {} source does not match its verified release commit.",
+                engine_name(&o.engine)
+            ));
+        }
         let message = git_run(&["log", "-1", "--format=%B"])?;
         let reference = message.lines().rev().find_map(|line| {
-            line.trim()
-                .strip_prefix("Bench:")?
-                .trim()
-                .parse::<u64>()
-                .ok()
-                .filter(|&n| n > 0)
+            let (label, value) = line.trim().split_once(':')?;
+            if !label.eq_ignore_ascii_case("bench") {
+                return None;
+            }
+            value.trim().parse::<u64>().ok().filter(|&n| n > 0)
         });
-        let (network, network_url, expected_hash) = self.network(&source, commit.trim())?;
+        let networks = self.networks(&source)?;
         let curl = if self.engine == Engine::Viridithas {
             tools::find_tool("curl.exe").ok_or("curl was not found.")?
         } else {
             root.join("usr/bin/curl.exe")
         };
-        phase(shared, "Download and check the embedded network");
-        execute(
-            Command::new(curl).args([
-                "--fail",
-                "--location",
-                "--retry",
-                "2",
-                "--output",
-                &network,
-                &network_url,
-            ]),
-            1200,
-        )?;
-        let network_hash = hash_file(&source.join(&network))?;
-        if expected_hash.is_some_and(|expected| expected != network_hash) {
-            return Err(format!(
-                "The SHA-256 of {network} does not match the published release digest."
-            ));
+        phase(shared, "Check embedded network files");
+        let mut network_records = Vec::new();
+        for network in &networks {
+            let path = source.join(&network.path);
+            if let Some(url) = &network.url {
+                fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+                execute(
+                    Command::new(&curl).args([
+                        "--fail",
+                        "--location",
+                        "--retry",
+                        "2",
+                        "--output",
+                        &network.path,
+                        url,
+                    ]),
+                    1200,
+                )?;
+            }
+            let hash = hash_file(&path)?;
+            if network
+                .expected_hash
+                .is_some_and(|expected| expected != hash)
+            {
+                return Err(format!(
+                    "The SHA-256 of {} does not match the expected digest.",
+                    network.path
+                ));
+            }
+            network_records.push(serde_json::json!({
+                "path": network.path, "url": network.url, "sha256": hash,
+                "digestVerifiedAgainstUpstream": network.expected_hash.is_some(),
+            }));
         }
         let filename = format!("{}.exe", o.engine);
         let (exe, compiler, build_tools) = if self.engine == Engine::Viridithas {
             build_viridithas(o, job, &source, &execute, shared, reference)?
         } else {
-            self.build_clang(o, &source, &filename, &network, &execute, shared)?
+            self.build_msys(o, &source, &filename, &networks[0].path, &execute, shared)?
         };
 
         let result = job.join("result");
@@ -241,7 +319,11 @@ impl Spec {
             "--output=../result/source.tar",
             "HEAD",
         ])?;
-        fs::copy(source.join("LICENSE"), result.join("LICENSE")).map_err(|e| e.to_string())?;
+        let license = match self.engine {
+            Engine::Koivisto | Engine::Seer => "LICENSE.md",
+            _ => "LICENSE",
+        };
+        fs::copy(source.join(license), result.join(license)).map_err(|e| e.to_string())?;
         let cargo_lock = if self.engine == Engine::Viridithas {
             fs::copy(source.join("Cargo.lock"), result.join("Cargo.lock"))
                 .map_err(|e| e.to_string())?;
@@ -249,11 +331,13 @@ impl Spec {
         } else {
             None
         };
+        let network = &network_records[0];
         let manifest = serde_json::json!({
             "schemaVersion": 2, "engine": o.engine, "sourceUrl": repo, "commit": commit.trim(),
-            "options": o, "compiler": compiler, "buildTools": build_tools, "network": network,
-            "networkUrl": network_url, "networkSha256": network_hash, "networkEmbedded": true,
-            "networkDigestVerifiedAgainstUpstream": expected_hash.is_some(), "uciVerified": true,
+            "options": o, "compiler": compiler, "buildTools": build_tools, "network": network["path"],
+            "networkUrl": network["url"], "networkSha256": network["sha256"], "networkEmbedded": true,
+            "networkDigestVerifiedAgainstUpstream": network["digestVerifiedAgainstUpstream"],
+            "networks": network_records, "uciVerified": true,
             "standaloneSearchVerified": true, "benchmarkNodes": nodes, "referenceNodes": reference,
             "pgoProfilesApplied": o.pgo, "logPath": job.join("build.log"), "sourceArchive": "source.tar",
             "cargoLock": cargo_lock,
@@ -266,20 +350,46 @@ impl Spec {
         Ok(output.to_string_lossy().into_owned())
     }
 
-    fn network(
-        &self,
-        source: &Path,
-        commit: &str,
-    ) -> Result<(String, String, Option<&'static str>)> {
-        if self.engine == Engine::Viridithas {
-            if commit != VIRI_COMMIT {
-                return Err("This Viridithas revision has no verified network mapping.".into());
+    fn networks(&self, source: &Path) -> Result<Vec<Network>> {
+        let download = |path: &str, url: &str, expected_hash| Network {
+            path: path.into(),
+            url: Some(url.into()),
+            expected_hash,
+        };
+        match self.engine {
+            Engine::Viridithas => {
+                return Ok(vec![download(
+                    "viridithas.nnue.zst",
+                    "https://github.com/cosmobobak/viridithas-networks/releases/download/v109/sandhi-s2-b200.nnue.zst",
+                    Some("066c172e22c25ee3d3b4084ad44ff761426f906a9c536cabd0127d17413d0585"),
+                )]);
             }
-            return Ok((
-                "viridithas.nnue.zst".into(),
-                "https://github.com/cosmobobak/viridithas-networks/releases/download/v109/sandhi-s2-b200.nnue.zst".into(),
-                Some("066c172e22c25ee3d3b4084ad44ff761426f906a9c536cabd0127d17413d0585"),
-            ));
+            Engine::Patricia => {
+                return Ok(["fingolfin", "finarfin", "feanor"]
+                    .into_iter()
+                    .map(|name| Network {
+                        path: format!("engine/nets/{name}.nnue"),
+                        url: None,
+                        expected_hash: None,
+                    })
+                    .collect());
+            }
+            // This blob comes from the networks gitlink of the pinned Koivisto release.
+            Engine::Koivisto => {
+                return Ok(vec![download(
+                    "networks/default.net",
+                    "https://raw.githubusercontent.com/Luecx/KoivistoNetworks/8cae81230c6bf36733a292ee7633602dfbbe9c49/default.net",
+                    Some("cbca457c7e0f1cb9b2ff9a84c2e733479aafed3349cc44eac4fa0dd6af17dab7"),
+                )]);
+            }
+            Engine::Seer => {
+                return Ok(vec![download(
+                    "build/eval.bin",
+                    "https://github.com/connormcmonigle/seer-training/releases/download/0x35ddef41/q0x35ddef41.bin",
+                    Some("f2a63c40d58bc74e630fc40be9385fb5789d129f30aa2b98b024a0f8f78ec185"),
+                )]);
+            }
+            _ => {}
         }
         let text = fs::read_to_string(source.join("network.txt"))
             .map_err(|e| format!("This source needs a supported network.txt: {e}"))?;
@@ -309,10 +419,10 @@ impl Spec {
         };
         let filename = format!("{id}.{extension}");
         let url = format!("https://github.com/{repository}/releases/download/{id}/{filename}");
-        Ok((filename, url, hash))
+        Ok(vec![download(&filename, &url, hash)])
     }
 
-    fn build_clang(
+    fn build_msys(
         &self,
         o: &BuildOptions,
         source: &Path,
@@ -327,14 +437,13 @@ impl Spec {
             std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
         ))
         .map_err(|e| e.to_string())?;
-        let clang = execute(
-            Command::new(bin.join("clang++.exe"))
-                .arg("--version")
-                .env("PATH", &path),
-            30,
-        )?;
-        let lld = execute(
-            Command::new(bin.join("ld.lld.exe"))
+        let compiler_name = if self.uses_gcc() {
+            "g++.exe"
+        } else {
+            "clang++.exe"
+        };
+        let compiler = execute(
+            Command::new(bin.join(compiler_name))
                 .arg("--version")
                 .env("PATH", &path),
             30,
@@ -345,21 +454,46 @@ impl Spec {
                 .env("PATH", &path),
             30,
         )?;
-        let mut tools = vec![lld, make_version];
-        let exe = source.join(filename);
+        let mut tools = vec![make_version];
+        if !self.uses_gcc() {
+            tools.insert(
+                0,
+                execute(
+                    Command::new(bin.join("ld.lld.exe"))
+                        .arg("--version")
+                        .env("PATH", &path),
+                    30,
+                )?,
+            );
+        }
+        let work = source.join(match self.engine {
+            Engine::Patricia => "engine",
+            Engine::Koivisto => "src_files",
+            Engine::Seer => "build",
+            _ => "",
+        });
+        let exe = work.join(filename);
         let make = |args: &[&str]| {
-            execute(
-                Command::new(root.join("usr/bin/bash.exe"))
-                    .args([
-                        "--noprofile",
-                        "--norc",
-                        "-c",
-                        "exec /usr/bin/make \"$@\"",
-                        "cec",
-                    ])
-                    .arg(format!("-j{}", o.jobs))
+            let mut command = Command::new(root.join("usr/bin/bash.exe"));
+            command
+                .args([
+                    "--noprofile",
+                    "--norc",
+                    "-c",
+                    "exec /usr/bin/make \"$@\"",
+                    "cec",
+                ])
+                .current_dir(&work);
+            if !matches!(self.engine, Engine::Patricia | Engine::Koivisto) {
+                command.arg(format!("-j{}", o.jobs));
+            }
+            if matches!(self.engine, Engine::PlentyChess | Engine::Stormphrax) {
+                command
                     .arg(format!("EXE={filename}"))
-                    .arg(format!("EVALFILE={network}"))
+                    .arg(format!("EVALFILE={network}"));
+            }
+            execute(
+                command
                     .args(args)
                     .env("PATH", &path)
                     .env("MSYSTEM", "UCRT64")
@@ -413,13 +547,45 @@ impl Spec {
             } else {
                 make(&["_nopgo", &arch, "CXX=clang++"])?;
             }
-        } else {
+        } else if self.engine == Engine::Stormphrax {
             phase(shared, "Preprocess Stormphrax network and compile");
             make(&[
                 &o.architecture,
                 "LDFLAGS=-fuse-ld=lld -static",
                 "MKDIR=mkdir -p",
             ])?;
+        } else {
+            phase(shared, &format!("Compile {}", engine_name(&o.engine)));
+            match self.engine {
+                Engine::Patricia => make(&[
+                    "build",
+                    "CXX=clang++",
+                    "CXXFLAGS=-O3 -march=x86-64-v3 -std=c++20 -ffast-math -static -fuse-ld=lld",
+                ])?,
+                Engine::Koivisto => make(&[
+                    "build",
+                    "CXX=g++",
+                    "_ROOT=..",
+                    "_THIS=.",
+                    // Override the upstream default spelling to use the verified local
+                    // blob and skip the Makefile's implicit submodule update.
+                    "EVALFILE=../networks/./default.net",
+                    "EXE=koivisto.exe",
+                    "DETECT=0",
+                    "STATIC=1",
+                    "VALGRIND=0",
+                    "AVX2=1",
+                ])?,
+                Engine::Seer => make(&[
+                    "binary",
+                    "CXX=g++",
+                    "EXE=seer.exe",
+                    "EVALFILE=eval.bin",
+                    "LDFLAGS=-static -lpthread",
+                    r#"BASECXXFLAGS=-std=c++17 -O3 -DNDEBUG -march=x86-64-v3 -fopenmp-simd -fconstexpr-ops-limit=1000000000 -DEVALFILE=\"eval.bin\""#,
+                ])?,
+                _ => unreachable!("non-MSYS2 build"),
+            };
         }
         if o.strip {
             phase(shared, "Strip executable symbols");
@@ -430,7 +596,7 @@ impl Spec {
                 60,
             )?;
         }
-        Ok((exe, clang, tools))
+        Ok((exe, compiler, tools))
     }
 }
 
@@ -553,7 +719,10 @@ fn verify_bench(output: &str, expected: Option<u64>) -> Result<u64> {
             let fields: Vec<_> = line.split_whitespace().collect();
             match fields.as_slice() {
                 ["Nodes", "searched", ":", nodes] => nodes.parse::<u64>().ok(),
-                [nodes, "nodes", nps, "nps"] if nps.parse::<u64>().is_ok_and(|n| n > 0) => {
+                [nodes, "nodes", nps, "nps"]
+                | ["OVERALL:" | "Bench:", nodes, "nodes", nps, "nps"]
+                    if nps.parse::<u64>().is_ok_and(|n| n > 0) =>
+                {
                     nodes.parse::<u64>().ok()
                 }
                 _ => None,
@@ -579,6 +748,14 @@ mod tests {
     fn benchmark_requires_a_complete_summary_and_matches_reference() {
         assert_eq!(verify_bench("Nodes searched  : 1234", Some(1234)), Ok(1234));
         assert_eq!(verify_bench("1234 nodes 5678 nps", Some(1234)), Ok(1234));
+        assert_eq!(
+            verify_bench("Bench: 1234 nodes 5678 nps", Some(1234)),
+            Ok(1234)
+        );
+        assert_eq!(
+            verify_bench("OVERALL: 1234 nodes 5678 nps", Some(1234)),
+            Ok(1234)
+        );
         assert!(verify_bench("1234 nodes 0 nps", None).is_err());
         assert!(verify_bench("info depth 12 nodes 1234 nps 5678", None).is_err());
         assert!(verify_bench("1234 nodes 5678 nps", Some(4321)).is_err());

@@ -103,7 +103,7 @@
                                     <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseOutput_Click"/>
                                 </Grid>
                                 <TextBlock x:Name="RustRequirements" Text="Requires Rust/Cargo, MSVC x64 C++ tools, Windows SDK, Git and curl on PATH. This build omits Syzygy and PGO." Visibility="Collapsed" TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
-                                <StackPanel x:Name="StockfishOptions" Spacing="16">
+                                <StackPanel x:Name="CpuBuildOptions" Spacing="16">
                                     <TextBlock x:Name="HardwareSummary" Style="{StaticResource JupiterCaptionTextStyle}"/>
                                     <CheckBox x:Name="AutoArchitecture" Content="Use recommended architecture" Checked="AutoArchitecture_Changed" Unchecked="AutoArchitecture_Changed" ToolTipService.ToolTip="Detect this CPU’s supported instructions and select the recommended target for the selected engine automatically. Older AMD Zen CPUs avoid slow BMI2/PEXT. Turn this off to choose another compatible target. Recommendations are not a speed benchmark."/>
                                     <StackPanel Spacing="4">

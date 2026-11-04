@@ -83,7 +83,7 @@ pub fn defaults(engine: &str) -> BuildOptions {
         "caissa" => caissa::defaults(),
         "alexandria" => alexandria::defaults(),
         "avalanche" => avalanche::defaults(),
-        "plentychess" | "stormphrax" | "viridithas" => nnue_batch::defaults(engine),
+        _ if nnue_batch::spec(engine).is_some() => nnue_batch::defaults(engine),
         _ => BuildOptions {
             auto_architecture: true,
             architecture: hardware::detect().recommended,
@@ -105,6 +105,9 @@ fn engine_name(engine: &str) -> &'static str {
         "plentychess" => "PlentyChess",
         "stormphrax" => "Stormphrax",
         "viridithas" => "Viridithas",
+        "patricia" => "Patricia",
+        "koivisto" => "Koivisto",
+        "seer" => "Seer",
         _ => "Stockfish",
     }
 }
@@ -165,7 +168,7 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
     if resolved.auto_architecture {
         match resolved.engine.as_str() {
             "avalanche" => resolved.architecture = "native".into(),
-            "plentychess" | "stormphrax" | "viridithas" => {
+            engine if nnue_batch::spec(engine).is_some() => {
                 resolved.architecture = nnue_batch::recommended(&resolved.engine);
             }
             "stockfish" => resolved.architecture = hardware::detect().recommended,
@@ -189,10 +192,8 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
             | "caissa"
             | "alexandria"
             | "avalanche"
-            | "plentychess"
-            | "stormphrax"
-            | "viridithas"
-    ) {
+    ) && nnue_batch::spec(&options.engine).is_none()
+    {
         return Err("Select a supported engine.".into());
     }
     if options.source_ref.is_empty()

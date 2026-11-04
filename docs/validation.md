@@ -186,3 +186,18 @@ The installed CLI also completed a fresh Viridithas PGO source build, verified i
 The published installer, portable ZIP and checksum file match the local artifacts byte for byte by SHA-256. The installer digest is `faa74093264dcadd52fbcbc21272140398f6a302f1ef72316cf497c035c72b0b`. The portable digest is `d7838e0f9cf739c059c6e588cefe651315241e1f4f8c14accb87255d69d4a398`. The tag resolves to the installed build's source commit. [Release v0.7.0](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v0.7.0)
 
 Windows CI passed for the release commit on its second attempt, including installation, upgrade, uninstall, reinstallation and Start Menu registration on a fresh runner. The first attempt produced a passing WinUI form report and then exited with a native access violation during shutdown. The retry and the local test runs exited cleanly. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/41619040857)
+
+## Version 0.8.0 — Patricia, Koivisto and Seer
+
+On 3 November 2026 the 0.8.0 Rust CLI fetched fresh upstream sources and built the following Windows x64 executables on Ian's Intel Core i7-10700. The logs, manifests, downloaded networks, source archives and executables are in the ignored `target/priority engines validation 20261103-221114` directory.
+
+| Engine | Resolved source commit | Toolchain and target | Verified benchmark nodes |
+| --- | --- | --- | ---: |
+| Patricia 5.1 | `f1ee4273c6e6068bd6ec0d53ca91c1c391543f85` | UCRT64 Clang/LLD 22.1.8, x86-64-v3 | 3,187,856 |
+| Koivisto v9.0 | `2895237d7a4ff267752fb19852ce9868bdccb753` | UCRT64 GCC 16.1.0, AVX2 | 4,380,745 |
+| Seer v2.8.0 | `f9b341ea1ffc79fde5acf7e6f382c3a4e29a8e19` | UCRT64 GCC 16.1.0, x86-64-v3 | 4,148,985 |
+| PlentyChess b-v8.0.0 regression build | `50ad9f1b523063cbbbf599fe0547f42870fe2906` | UCRT64 Clang/LLD 22.1.8, BMI2 | 3,939,470 |
+
+Each build passed the UCI handshake and matched its source benchmark with only System32 on PATH. The manifests record all three tracked Patricia networks and confirm digest checks for the external Koivisto, Seer and PlentyChess networks. The new adapters cover the listed releases and CPU targets, with regular compilation and symbol stripping tested. PGO, other revisions, other CPU targets and searches using tablebase files were outside this validation.
+
+The name audit checked the tracked source, scripts, executable metadata configuration, installer and Start Menu identity. The shared CPU panel now uses the identifier `CpuBuildOptions`. References to the predecessor `StockfishCompiler` are confined to historical documentation and repository instructions.

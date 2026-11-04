@@ -1,6 +1,24 @@
 use clap::{Parser, Subcommand};
 use compiler_core::Compiler;
 
+const ENGINES: [&str; 15] = [
+    "stockfish",
+    "lc0",
+    "berserk",
+    "obsidian",
+    "reckless",
+    "igel",
+    "caissa",
+    "alexandria",
+    "avalanche",
+    "plentychess",
+    "stormphrax",
+    "viridithas",
+    "patricia",
+    "koivisto",
+    "seer",
+];
+
 #[derive(Parser)]
 #[command(version, about = "Compile chess engines using the Jupiter build core")]
 struct Args {
@@ -11,7 +29,7 @@ struct Args {
 enum Action {
     /// Print detected MSYS2 UCRT64 tools and default options.
     Doctor {
-        #[arg(long, default_value = "stockfish", value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa", "alexandria", "avalanche", "plentychess", "stormphrax", "viridithas"])]
+        #[arg(long, default_value = "stockfish", value_parser = clap::builder::PossibleValuesParser::new(ENGINES))]
         engine: String,
     },
     /// Validate a JSON build configuration and print its steps.
@@ -35,7 +53,7 @@ enum Action {
     },
     /// Browse upstream GitHub versions/downloads. Credentials never enter command arguments.
     Github {
-        #[arg(value_parser = ["stockfish", "lc0", "berserk", "obsidian", "reckless", "igel", "caissa", "alexandria", "avalanche", "plentychess", "stormphrax", "viridithas"])]
+        #[arg(value_parser = clap::builder::PossibleValuesParser::new(ENGINES))]
         engine: String,
         #[arg(long, default_value="catalog", value_parser=["catalog","assets","artifacts","download-release","download-artifact","account"])]
         action: String,

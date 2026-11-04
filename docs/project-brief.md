@@ -73,3 +73,7 @@ Avalanche v5.0.0 uses Zig 0.17.0 with its tracked network and vendored C transla
 ## Version 0.7
 
 The first batch from Ian's expansion list covers PlentyChess, Stormphrax and Viridithas. PlentyChess and Stormphrax use UCRT64 Clang and LLD with source-selected NNUE preprocessing. Viridithas uses Rust on MSVC and starts with the v20.0.0 release and its matching network. PlentyChess and Viridithas offer optional LLVM PGO. All three verify standalone UCI and compare search benchmark nodes with the source reference when available. See [the build workflows](plentychess-stormphrax-viridithas.md).
+
+## Version 0.8
+
+Ian prioritized Patricia, Koivisto and Seer for the next batch. The adapters build pinned upstream releases, embed their networks and require standalone UCI plus a matching source benchmark. See [the build workflows](patricia-koivisto-seer.md).

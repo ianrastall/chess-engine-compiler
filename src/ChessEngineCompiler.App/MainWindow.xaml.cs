@@ -37,6 +37,7 @@ public sealed partial class MainWindow : Window
         "avalanche" or "viridithas" => "native",
         "plentychess" => _hardware.PlentychessRecommended,
         "stormphrax" => _hardware.StormphraxChoices.FirstOrDefault() ?? "",
+        "patricia" or "koivisto" or "seer" => ArchitectureChoices.FirstOrDefault() ?? "",
         "alexandria" when _hardware.CppRecommended == "x86-64" => "",
         "caissa" or "alexandria" => _hardware.CppRecommended,
         "igel" => _hardware.IgelRecommended,
@@ -45,13 +46,16 @@ public sealed partial class MainWindow : Window
         "berserk" => _hardware.BerserkRecommended,
         _ => _hardware.Recommended,
     };
-    private bool SupportsPgo => _engine is not ("reckless" or "igel" or "caissa" or "alexandria" or "avalanche" or "stormphrax");
+    private bool SupportsPgo => _engine is not ("reckless" or "igel" or "caissa" or "alexandria" or "avalanche" or "stormphrax" or "patricia" or "koivisto" or "seer");
+    private bool HasPinnedSource => _engine is "viridithas" or "patricia" or "koivisto" or "seer";
     private IEnumerable<string> ArchitectureChoices => _engine switch
     {
         "avalanche" => new[] { "native", "x86_64" },
         "plentychess" => _hardware.PlentychessChoices,
         "stormphrax" => _hardware.StormphraxChoices,
         "viridithas" => new[] { "native" },
+        "patricia" or "seer" => _hardware.PlentychessChoices.Count > 0 ? new[] { "x86-64-v3" } : Array.Empty<string>(),
+        "koivisto" => _hardware.CppChoices.Where(c => c == "avx2"),
         "caissa" => _hardware.CppChoices,
         "alexandria" => _hardware.CppChoices.Where(c => c != "x86-64"),
         "igel" => _hardware.IgelChoices,
@@ -152,22 +156,25 @@ public sealed partial class MainWindow : Window
         CudaRoot.Text = options.CudaRoot; WeightsPath.Text = options.WeightsPath;
         Backend.SelectedIndex = options.Backend == "eigen" ? 1 : 0;
         // Stockfish and Berserk share the MSYS2 GCC controls; Berserk compiles in one invocation, so parallel jobs do not apply.
-        StockfishOptions.Visibility = _engine != "lc0" ? Visibility.Visible : Visibility.Collapsed;
+        CpuBuildOptions.Visibility = _engine != "lc0" ? Visibility.Visible : Visibility.Collapsed;
         MsysOptions.Visibility = _engine is "lc0" or "reckless" or "avalanche" or "viridithas" ? Visibility.Collapsed : Visibility.Visible;
         RustRequirements.Visibility = _engine == "reckless" ? Visibility.Visible : Visibility.Collapsed;
         Pgo.Visibility = SupportsPgo ? Visibility.Visible : Visibility.Collapsed;
-        SourceBrowser.Visibility = _engine == "viridithas" ? Visibility.Collapsed : Visibility.Visible;
-        SourceRef.IsReadOnly = _engine == "viridithas" || SourceChannel.SelectedIndex != 2;
-        AutoArchitecture.Visibility = _engine == "viridithas" ? Visibility.Collapsed : Visibility.Visible;
+        SourceBrowser.Visibility = HasPinnedSource ? Visibility.Collapsed : Visibility.Visible;
+        SourceRef.IsReadOnly = HasPinnedSource || SourceChannel.SelectedIndex != 2;
+        AutoArchitecture.Visibility = HasPinnedSource ? Visibility.Collapsed : Visibility.Visible;
         ZigOptions.Visibility = _engine == "avalanche" ? Visibility.Visible : Visibility.Collapsed;
         Lc0Options.Visibility = _engine == "lc0" ? Visibility.Visible : Visibility.Collapsed;
-        Jobs.Visibility = _engine is "berserk" or "igel" ? Visibility.Collapsed : Visibility.Visible;
+        Jobs.Visibility = _engine is "berserk" or "igel" or "patricia" or "koivisto" ? Visibility.Collapsed : Visibility.Visible;
         CompileButton.Content = StartMenu.Text = $"Compile {EngineName(_engine)}";
         SourceHint.Text = _engine switch
         {
             "plentychess" => "Default: PlentyChess 8.0.0. MSYS2 UCRT64 Clang and LLD, with an embedded network. PGO requires LLVM profiling tools.",
             "stormphrax" => "Default: Stormphrax v8.0.0. MSYS2 UCRT64 Clang and LLD, with an embedded network. PGO is unavailable.",
             "viridithas" => "Viridithas v20.0.0 uses stable MSVC Rust and its verified network. PGO requires the matching Rust LLVM tools. This build omits Syzygy.",
+            "patricia" => "Patricia 5.1 uses MSYS2 UCRT64 Clang and LLD and embeds its three tracked networks.",
+            "koivisto" => "Koivisto v9.0 uses MSYS2 UCRT64 GCC and embeds the verified network from the pinned network repository.",
+            "seer" => "Seer v2.8.0 uses MSYS2 UCRT64 GCC and embeds its verified release network.",
             "avalanche" => "Default: Avalanche v5.0.0. Zig 0.17.0, embedded tracked network and vendored dependencies. PGO is unavailable.",
             "alexandria" => "Default: Alexandria v9.1.0. GCC regular build with a source-pinned, verified and preprocessed network. PGO is unavailable.",
             "caissa" => "Default: Caissa 2.0. GCC regular build with a hash-checked embedded network. PGO is unavailable.",
@@ -182,7 +189,7 @@ public sealed partial class MainWindow : Window
         {
             "plentychess" => "Select an upstream PlentyChess release tag, branch or commit. Default: b-v8.0.0.",
             "stormphrax" => "Select an upstream Stormphrax release tag, branch or commit. Default: v8.0.0.",
-            "viridithas" => "Builds the release with a verified source-to-network mapping.",
+            "viridithas" or "patricia" or "koivisto" or "seer" => "Builds the release with a verified source-to-network mapping.",
             "avalanche" => "Select a SnowballSH/Avalanche release tag, branch or exact commit. Default: v5.0.0, verified with Zig 0.17.0.",
             "alexandria" => "Select a PGG106/Alexandria release tag, branch or exact commit. Default: v9.1.0.",
             "caissa" => "Select a Witek902/Caissa release tag, branch or exact commit. Default: 2.0.",
@@ -202,13 +209,15 @@ public sealed partial class MainWindow : Window
         Architecture.Items.Clear();
         foreach (var choice in ArchitectureChoices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
         Architecture.SelectedIndex = Architecture.Items.Count > 0 ? 0 : -1;
-        if (_engine is "plentychess" or "stormphrax" or "viridithas")
+        if (_engine is "plentychess" or "stormphrax" or "viridithas" or "patricia" or "koivisto" or "seer")
         {
             ArchitectureExplanation.Text = _engine switch
             {
                 "viridithas" => "native targets the CPU in this computer.",
                 _ when Architecture.Items.Count == 0 => "This CPU lacks instructions required by the available build targets.",
                 "stormphrax" => "native uses upstream CPU detection, which avoids slow PEXT on older AMD CPUs.",
+                "patricia" or "seer" => "This build targets x86-64-v3, which requires a Haswell-class instruction set.",
+                "koivisto" => "This build targets AVX2.",
                 _ => $"Recommended target {RecommendedArchitecture}. Both targets use Haswell-class instructions. bmi2 enables PEXT move generation.",
             };
             return;
@@ -390,6 +399,9 @@ public sealed partial class MainWindow : Window
         "plentychess" => "https://github.com/Yoshie2000/PlentyChess/releases",
         "stormphrax" => "https://github.com/Ciekce/Stormphrax/releases",
         "viridithas" => "https://github.com/cosmobobak/viridithas/releases",
+        "patricia" => "https://github.com/Adam-Kulju/Patricia/releases",
+        "koivisto" => "https://github.com/Luecx/Koivisto/releases",
+        "seer" => "https://github.com/connormcmonigle/seer-nnue/releases",
         "alexandria" => "https://github.com/PGG106/Alexandria/releases",
         "caissa" => "https://github.com/Witek902/Caissa/releases",
         "igel" => "https://github.com/vshcherbyna/igel/releases",
@@ -428,7 +440,7 @@ public sealed partial class MainWindow : Window
         XamlRoot = Root.XamlRoot,
         Title = "Build requirements",
         CloseButtonText = "Close",
-        Content = new TextBlock { Text = _engine is "plentychess" or "stormphrax" ? "Install the MSYS2 UCRT64 Clang and LLVM packages under Settings > Build tools. Select the MSYS2 root. The build downloads and embeds the network selected by the source. PlentyChess supports regular builds and LLVM PGO. Stormphrax supports regular builds." : _engine == "viridithas" ? "Install stable MSVC Rust through Rustup, Microsoft C++ build tools and Windows SDK, Git and curl. For PGO, run rustup component add llvm-tools --toolchain stable-x86_64-pc-windows-msvc before starting. The verified v20.0.0 network is fetched and embedded." : _engine == "avalanche" ? "Use Zig 0.17.0 and Git for Windows. Settings > Build tools can install Zig into this app’s tools folder after verifying its archive. No separate C compiler is needed. Avalanche includes its source-selected network and vendored translator. PGO is unavailable; every result must match bench.nodes with only System32 on PATH." : _engine is "caissa" or "alexandria" ? "Install MSYS2 UCRT64 GCC, make, git and curl. The selected engine uses a regular static GCC build with its source-selected network embedded. Its published network hash is checked. Parallel jobs apply. PGO is not included." : _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Use Settings > Build tools for explicit setup." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nUse Settings > Build tools to inspect or explicitly install the required tools." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
+        Content = new TextBlock { Text = _engine == "patricia" ? "Install MSYS2 UCRT64 Clang and LLD in Settings > Build tools. Select the MSYS2 root. Patricia embeds all three networks from its release source and runs a standalone benchmark." : _engine is "koivisto" or "seer" ? "Install MSYS2 UCRT64 GCC, make, Git and curl. Select the MSYS2 root. The build downloads and verifies the release network before embedding it in the executable." : _engine is "plentychess" or "stormphrax" ? "Install the MSYS2 UCRT64 Clang and LLVM packages under Settings > Build tools. Select the MSYS2 root. The build downloads and embeds the network selected by the source. PlentyChess supports regular builds and LLVM PGO. Stormphrax supports regular builds." : _engine == "viridithas" ? "Install stable MSVC Rust through Rustup, Microsoft C++ build tools and Windows SDK, Git and curl. For PGO, run rustup component add llvm-tools --toolchain stable-x86_64-pc-windows-msvc before starting. The verified v20.0.0 network is fetched and embedded." : _engine == "avalanche" ? "Use Zig 0.17.0 and Git for Windows. Settings > Build tools can install Zig into this app’s tools folder after verifying its archive. No separate C compiler is needed. Avalanche includes its source-selected network and vendored translator. PGO is unavailable; every result must match bench.nodes with only System32 on PATH." : _engine is "caissa" or "alexandria" ? "Install MSYS2 UCRT64 GCC, make, git and curl. The selected engine uses a regular static GCC build with its source-selected network embedded. Its published network hash is checked. Parallel jobs apply. PGO is not included." : _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Use Settings > Build tools for explicit setup." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nUse Settings > Build tools to inspect or explicitly install the required tools." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
     }.ShowAsync();
     private async void About_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {

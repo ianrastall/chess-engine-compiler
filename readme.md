@@ -1,6 +1,6 @@
 # Chess Engine Compiler
 
-Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.7 supports Alexandria, Avalanche, Berserk, Caissa, Igel, Lc0, Obsidian, PlentyChess, Reckless, Stockfish, Stormphrax and Viridithas. Browse upstream GitHub versions and download release binaries in the separate Downloads area.
+Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.8 supports Alexandria, Avalanche, Berserk, Caissa, Igel, Koivisto, Lc0, Obsidian, Patricia, PlentyChess, Reckless, Seer, Stockfish, Stormphrax and Viridithas. Browse upstream GitHub versions and download release binaries in the separate Downloads area.
 
 Select an engine and an official tag, branch or commit, choose build options and compile. The GUI shows the current phase and live output, can cancel compilation, and saves the executable, exact source commit, compiler version, settings, source archive and full log. Export build scripts creates PowerShell and batch entry points with a standalone CLI and the selected configuration.
 
@@ -61,6 +61,8 @@ Select **Igel** for a GCC build of 3.8.0 with its standard embedded NNUE and Syz
 ## Versions, architecture and GitHub
 
 PlentyChess and Stormphrax use MSYS2 UCRT64 Clang and LLD. PlentyChess supports optional LLVM PGO. Viridithas uses stable Windows MSVC Rust, with optional PGO using the same Rust toolchain's LLVM profiler. Each embeds its network and runs a standalone benchmark. See [PlentyChess, Stormphrax and Viridithas](docs/plentychess-stormphrax-viridithas.md).
+
+Patricia 5.1 uses MSYS2 UCRT64 Clang and LLD. Koivisto v9.0 and Seer v2.8.0 use MSYS2 UCRT64 GCC. These three adapters build pinned releases with embedded networks and check the result against the source benchmark. See [Patricia, Koivisto and Seer](docs/patricia-koivisto-seer.md).
 
 The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
 

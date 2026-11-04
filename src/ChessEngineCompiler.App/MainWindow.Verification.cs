@@ -32,7 +32,7 @@ public sealed partial class MainWindow
         Jobs.Value = 2; Pgo.IsChecked = true; Architecture.SelectedIndex = 3;
         var stockfish = Options();
         SelectEngine("lc0");
-        Require(_engine == "lc0" && Lc0Options.Visibility == Visibility.Visible && StockfishOptions.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Collapsed, "Lc0 did not select its own controls.");
+        Require(_engine == "lc0" && Lc0Options.Visibility == Visibility.Visible && CpuBuildOptions.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Collapsed, "Lc0 did not select its own controls.");
         Require(Model.SourceRef == "v0.32.1" && CompileButton.Content.ToString() == "Compile Lc0", "Lc0 source or action is wrong.");
         Require(Model.OutputRoot == stockfish.OutputRoot && Jobs.Value == 2, "First Lc0 selection lost shared output/jobs defaults.");
         Model.SourceRef = "release/0.32"; WeightsPath.Text = @"D:\Network folder\net.pb.gz";
@@ -40,7 +40,7 @@ public sealed partial class MainWindow
         Require(CudaRoot.Visibility == Visibility.Collapsed, "CPU selection still exposes CUDA toolkit settings.");
         var lc0 = Options();
         SelectEngine("stockfish");
-        Require(_engine == "stockfish" && StockfishOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed, "Stockfish controls were not restored.");
+        Require(_engine == "stockfish" && CpuBuildOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed, "Stockfish controls were not restored.");
         Require(Options().Equals(stockfish), "Switching engines changed Stockfish selections.");
         SelectEngine("lc0");
         Require(Options().Equals(lc0), "Switching engines lost Lc0 selections.");
@@ -48,7 +48,7 @@ public sealed partial class MainWindow
         Require(CudaRoot.Visibility == Visibility.Visible, "CUDA selection did not show its toolkit setting.");
         lc0 = Options();
         SelectEngine("berserk");
-        Require(_engine == "berserk" && StockfishOptions.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed && Jobs.Visibility == Visibility.Collapsed, "Berserk did not select its own controls.");
+        Require(_engine == "berserk" && CpuBuildOptions.Visibility == Visibility.Visible && MsysOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed && Jobs.Visibility == Visibility.Collapsed, "Berserk did not select its own controls.");
         Require(Model.SourceRef == "14" && CompileButton.Content.ToString() == "Compile Berserk", "Berserk source or action is wrong.");
         Require(Architecture.Items.Cast<Microsoft.UI.Xaml.Controls.ComboBoxItem>().Select(i => (string)i.Content).SequenceEqual(_hardware.BerserkChoices), "Berserk did not offer its own CPU targets.");
         Require(Options().Architecture == _hardware.BerserkRecommended && !Architecture.IsEnabled && Pgo.IsChecked == false, "Berserk did not default to its automatic recommendation without PGO.");
@@ -124,6 +124,13 @@ public sealed partial class MainWindow
         SelectEngine("viridithas");
         Require(Model.SourceRef == "v20.0.0" && SourceRef.IsReadOnly && SourceBrowser.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Collapsed && Pgo.Visibility == Visibility.Visible, "Viridithas controls are wrong.");
         Require(Options().Architecture == "native", "Viridithas target is wrong.");
+        foreach (var (id, tag, parallel) in new[] { ("patricia", "5.1", false), ("koivisto", "v9.0", false), ("seer", "v2.8.0", true) })
+        {
+            SelectEngine(id);
+            Require(Model.SourceRef == tag && SourceRef.IsReadOnly && SourceBrowser.Visibility == Visibility.Collapsed, $"{id} source controls are wrong.");
+            Require(Pgo.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Visible && (Jobs.Visibility == Visibility.Visible) == parallel, $"{id} build controls are wrong.");
+            Require(Options().Architecture == RecommendedArchitecture, $"{id} target is wrong.");
+        }
         SelectEngine("plentychess"); Require(Options().Equals(plentyChess) && SourceBrowser.Visibility == Visibility.Visible && !SourceRef.IsReadOnly, "PlentyChess settings were not restored.");
         SelectEngine("lc0");
         Model.SourceRef = "v0.32.1";
@@ -150,7 +157,7 @@ public sealed partial class MainWindow
         await ToolSetupPane.VerifyControlsAsync();
         ToolSetupPane.StartBringIntoView(); Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "build-tools.png"));
-        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, switching across all twelve engines, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, $"PASS: real WinUI alphabetical engine selection, switching across all {Engines.Length} engines, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

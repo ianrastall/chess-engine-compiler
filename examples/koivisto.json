@@ -1,0 +1,11 @@
+{
+  "engine": "koivisto",
+  "sourceRef": "v9.0",
+  "msysRoot": "C:\\msys64",
+  "outputRoot": "C:\\Chess builds\\koivisto",
+  "architecture": "avx2",
+  "autoArchitecture": true,
+  "jobs": 4,
+  "pgo": false,
+  "strip": true
+}
