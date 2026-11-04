@@ -1,8 +1,10 @@
 # Chess Engine Compiler
 
-Jupiter desktop GUI for compiling chess engines on Windows 11 x64. Version 0.8 supports Alexandria, Avalanche, Berserk, Caissa, Igel, Koivisto, Lc0, Obsidian, Patricia, PlentyChess, Reckless, Seer, Stockfish, Stormphrax and Viridithas. Browse upstream GitHub versions and download release binaries in the separate Downloads area.
+Jupiter desktop GUI for compiling Stockfish and Lc0 on Windows 11 x64.
 
-Select an engine and an official tag, branch or commit, choose build options and compile. The GUI shows the current phase and live output, can cancel compilation, and saves the executable, exact source commit, compiler version, settings, source archive and full log. Export build scripts creates PowerShell and batch entry points with a standalone CLI and the selected configuration.
+Version 1.0 opens on **Release library** and checks for stable releases in the background. Select one or both engines and choose **Build new releases**. The first queue includes the newest two releases of each engine. Later checks add newly published releases and keep verified results. Choose **Latest release per engine** or **All releases** to change the scope. See the [release workflow and recipe rules](docs/release-library.md).
+
+Use **Advanced build** for individual tags, branches or commits, manual CPU targets, Lc0 backend and weights choices, and script export. Jobs show live output and save the executable, exact source commit, settings, source archive and log.
 
 ## Install and run
 
@@ -26,47 +28,11 @@ Each build creates a new job folder below the selected output folder. **Open res
 
 **Follow output** keeps the newest log lines visible. Scrolling up, dragging the log scrollbar or selecting text pauses the view so incoming updates do not interrupt reading or copying. Re-enable **Follow output** to catch up; compilation continues while the view is paused. The full log remains available through **Open saved log**. Hover over build options for their meaning and practical tradeoffs, including PGO, architecture, jobs and symbol stripping.
 
-## Alexandria
+## Stockfish and Lc0
 
-Build Alexandria v9.1.0 with MSYS2 UCRT64 GCC using AVX2 or BMI2. Its source-pinned network is verified and preprocessed; the benchmark must match the source reference. The scalar baseline and PGO are unavailable. See [Alexandria](docs/alexandria.md).
+Stockfish uses MSYS2 UCRT64 GCC. Managed builds use a compatible source-supported CPU target and profile-guided optimization. The engine's selected NNUE files are embedded.
 
-## Avalanche
-
-Build Avalanche v5.0.0 with Zig 0.17.0. **Settings > Build tools** can download, hash-check and install Zig privately without PATH changes. Native and portable baseline executables embed the tracked network and must match the source benchmark. See [Avalanche](docs/avalanche.md).
-
-## Caissa
-
-Build Caissa 2.0 with MSYS2 UCRT64 GCC. Its source-selected network is embedded and checked against the published digest. Regular x86-64, AVX2 and BMI2 builds are supported; PGO is unavailable. See [Caissa](docs/caissa.md).
-
-## Lc0
-
-Select **Lc0** to show its backend, Python/Meson, Visual Studio, CUDA and network controls. Each engine retains separate settings. Supported Lc0 backends are NVIDIA CUDA and CPU Eigen. Each result includes the selected network and any required CUDA runtime DLLs, and must pass a real standalone neural-network search. See [Lc0 tools, networks and build instructions](docs/lc0.md). Settings > Build tools offers explicit setup; CUDA remains guided through its official installer.
-
-## Berserk
-
-Select **Berserk** to compile [Berserk](https://github.com/jhonnold/berserk) with the same MSYS2 UCRT64 GCC toolchain as Stockfish; also install `wget` in MSYS2. The default source is release tag `14`. The build downloads the network named by that source, checks its SHA-256 and embeds it in a single static `berserk.exe`, which must pass UCI and a standalone search with no MSYS2 directories on PATH. Berserk offers its own CPU target names. PGO is off by default because it measured no faster with GCC. See [Berserk build details](docs/berserk.md).
-
-## Obsidian
-
-Select **Obsidian** to build v16.0 using MSYS2 UCRT64 GCC. Its source-selected network is embedded, with SHA-256 recorded in provenance. Regular and PGO builds pass standalone UCI and benchmark verification. See [Obsidian details](docs/obsidian.md) and the [example](examples/obsidian.json).
-
-## Reckless
-
-Select **Reckless** for a Rust/MSVC CPU build of v0.9.0 with its embedded network. Initial support omits Syzygy and PGO. Rust/Cargo, MSVC x64 tools, Git and curl are required. See [Reckless details](docs/reckless.md) and the [example](examples/reckless.json).
-
-## Igel
-
-Select **Igel** for a GCC build of 3.8.0 with its standard embedded NNUE and Syzygy support. AVX2 is required. PGO is unavailable. The network hash is checked, and the benchmark must match the source commit when a reference is supplied. See [Igel details](docs/igel.md) and the [example](examples/igel.json).
-
-## Versions, architecture and GitHub
-
-PlentyChess and Stormphrax use MSYS2 UCRT64 Clang and LLD. PlentyChess supports optional LLVM PGO. Viridithas uses stable Windows MSVC Rust, with optional PGO using the same Rust toolchain's LLVM profiler. Each embeds its network and runs a standalone benchmark. See [PlentyChess, Stormphrax and Viridithas](docs/plentychess-stormphrax-viridithas.md).
-
-Patricia 5.1 uses MSYS2 UCRT64 Clang and LLD. Koivisto v9.0 and Seer v2.8.0 use MSYS2 UCRT64 GCC. These three adapters build pinned releases with embedded networks and check the result against the source benchmark. See [Patricia, Koivisto and Seer](docs/patricia-koivisto-seer.md).
-
-The **Compile** work area preloads separate official-release and development lists from each engine's upstream GitHub repository. Choose **Source selection** to use a release tag, a development commit/prerelease, or a custom branch/tag/commit such as `master`. Development commit selections use exact SHAs. Refresh and paging load more metadata without starting a build.
-
-Engine selectors are alphabetical and retain settings by engine ID. Stockfish, Berserk, Caissa, Alexandria, Obsidian, Reckless and Igel detect this CPU and offer only compatible architecture choices. **Use recommended architecture** preselects a supported target and avoids slow BMI2/PEXT on older AMD Zen processors. Turn it off for manual selection. Existing manual settings stay manual. Recommendations use CPU features, not an empirical speed test. Lc0 retains its separate CPU/GPU backend controls; CUDA targets the local GPU.
+Lc0 uses MSVC and Meson/Ninja. Choose NVIDIA CUDA or CPU Eigen in **Advanced build** and select **Save settings** to apply the choice to the library. The library can supply a verified default network. Each result includes the weights and any required CUDA runtime libraries and must pass a real standalone search. See [Lc0 tools, networks and build instructions](docs/lc0.md).
 
 **Settings > GitHub > Manage GitHub access** supports anonymous access, a masked personal access token saved in Windows Credential Manager, or an existing GitHub CLI account. **Sign in through browser** uses GitHub CLI's device-code flow. Tokens never enter build JSON, exported scripts or logs. Authentication raises API limits and enables authorized workflow downloads. See [GitHub access and downloads](docs/github.md).
 
@@ -82,7 +48,7 @@ The separate **Downloads** work area lists release assets and authenticated work
 .\chess-engine-compiler.exe build .\stockfish.json
 ```
 
-Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [example configurations](examples) document editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts.
+Use **File > Export build scripts** to export the chosen settings, CLI, `build-engine.cmd`, an engine-specific batch entry point, `preview-build.cmd`, `check-tools.cmd` and `build-engine.ps1`. The [example configurations](examples) document editable settings. Script builds run independently of the GUI. The selected engine’s tools and network paths must also be available on any computer running its scripts. Earlier single-build configurations retain their CLI adapters.
 
 ## Develop
 

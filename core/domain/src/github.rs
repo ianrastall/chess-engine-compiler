@@ -15,7 +15,7 @@ pub struct Query {
     pub id: u64,
     pub output_folder: String,
 }
-#[derive(Clone, Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SourceVersion {
     pub id: u64,
     pub label: String,
@@ -77,7 +77,7 @@ impl Worker {
             return Err("A GitHub operation is already running.".into());
         }
         repository(&query.engine)?;
-        if !(0..=6).contains(&query.action) {
+        if !(0..=7).contains(&query.action) {
             return Err("Unsupported GitHub operation.".into());
         }
         if let Some(thread) = self.thread.take() {
@@ -131,12 +131,13 @@ impl Drop for Worker {
 }
 
 fn repository(engine: &str) -> Result<&'static str> {
+    if let Some(rule) = recipes::release_rule(engine) {
+        return Ok(&rule.repository);
+    }
     if let Some(spec) = super::nnue_batch::spec(engine) {
         return Ok(spec.repository);
     }
     match engine {
-        "stockfish" => Ok("official-stockfish/Stockfish"),
-        "lc0" => Ok("LeelaChessZero/lc0"),
         "berserk" => Ok("jhonnold/berserk"),
         "obsidian" => Ok("gab8192/Obsidian"),
         "reckless" => Ok("codedeliveryservice/Reckless"),
@@ -234,9 +235,26 @@ fn status_error(status: u16) -> String {
     }
 }
 fn get_json(client: &Client, path: &str, cancel: &AtomicBool) -> Result<(Value, bool)> {
+    let page = get_json_cached(client, path, None, cancel)?
+        .ok_or("GitHub returned an unexpected unchanged response.")?;
+    Ok((page.data, page.more))
+}
+
+struct JsonPage {
+    data: Value,
+    more: bool,
+    etag: Option<String>,
+}
+
+fn get_json_cached(
+    client: &Client,
+    path: &str,
+    etag: Option<&str>,
+    cancel: &AtomicBool,
+) -> Result<Option<JsonPage>> {
     let mut last = String::new();
     for attempt in 0..3 {
-        match get_json_once(client, path, cancel) {
+        match get_json_once(client, path, etag, cancel) {
             Ok(value) => return Ok(value),
             Err(error)
                 if error.contains("HTTP 5")
@@ -256,12 +274,24 @@ fn get_json(client: &Client, path: &str, cancel: &AtomicBool) -> Result<(Value, 
     }
     Err(last)
 }
-fn get_json_once(client: &Client, path: &str, cancel: &AtomicBool) -> Result<(Value, bool)> {
+fn get_json_once(
+    client: &Client,
+    path: &str,
+    etag: Option<&str>,
+    cancel: &AtomicBool,
+) -> Result<Option<JsonPage>> {
     check_cancel(cancel)?;
-    let response = client
-        .get(format!("https://api.github.com/{path}"))
+    let mut request = client.get(format!("https://api.github.com/{path}"));
+    if let Some(etag) = etag {
+        request = request.header(header::IF_NONE_MATCH, etag);
+    }
+    let response = request
         .send()
         .map_err(|_| "Could not contact GitHub. Check the connection and retry.")?;
+    if response.status() == reqwest::StatusCode::NOT_MODIFIED && etag.is_some() {
+        check_cancel(cancel)?;
+        return Ok(None);
+    }
     if !response.status().is_success() {
         return Err(response_error(&response));
     }
@@ -270,17 +300,23 @@ fn get_json_once(client: &Client, path: &str, cancel: &AtomicBool) -> Result<(Va
         .get(header::LINK)
         .and_then(|s| s.to_str().ok())
         .is_some_and(|s| s.contains("rel=\"next\""));
+    let etag = response
+        .headers()
+        .get(header::ETAG)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     let mut bytes = Vec::new();
     response
         .take(4 * 1024 * 1024)
         .read_to_end(&mut bytes)
         .map_err(|_| "Could not read GitHub's response.")?;
     check_cancel(cancel)?;
-    Ok((
-        serde_json::from_slice(&bytes)
+    Ok(Some(JsonPage {
+        data: serde_json::from_slice(&bytes)
             .map_err(|_| "GitHub returned an invalid or oversized response.")?,
         more,
-    ))
+        etag,
+    }))
 }
 fn release(value: &Value) -> SourceVersion {
     let tag = field(value, "tag_name");
@@ -345,6 +381,50 @@ fn execute(query: &Query, shared: &Arc<Mutex<NetworkSnapshot>>, cancel: &AtomicB
     let repo = repository(&query.engine)?;
     let page = query.page.max(1);
     match query.action {
+        7 => {
+            let mut releases = Vec::new();
+            let root = Path::new(&query.output_folder);
+            let cached = library::cached_etag(root, &query.engine)?;
+            for page in 1..=20 {
+                let Some(result) = get_json_cached(
+                    &client,
+                    &format!("repos/{repo}/releases?per_page=100&page={page}"),
+                    if page == 1 { cached.as_deref() } else { None },
+                    cancel,
+                )?
+                else {
+                    shared.lock().unwrap().message = "Stable release catalog is unchanged.".into();
+                    return Ok(());
+                };
+                releases.extend(
+                    result
+                        .data
+                        .as_array()
+                        .ok_or("GitHub releases were not a list.")?
+                        .iter()
+                        .filter(|item| item["draft"] == false && item["prerelease"] == false)
+                        .map(release)
+                        .filter(|release| {
+                            release.id != 0
+                                && !release.date.is_empty()
+                                && !release.reference.is_empty()
+                        }),
+                );
+                check_cancel(cancel)?;
+                if !result.more {
+                    library::observe(
+                        root,
+                        &query.engine,
+                        releases,
+                        if page == 1 { result.etag } else { None },
+                    )?;
+                    return Ok(());
+                }
+            }
+            return Err(
+                "GitHub returned more release pages than this catalog can safely load.".into(),
+            );
+        }
         0 => {
             let (info, _) = get_json(&client, &format!("repos/{repo}"), cancel)?;
             let branch = field(&info, "default_branch");

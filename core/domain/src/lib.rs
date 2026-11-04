@@ -23,8 +23,10 @@ pub mod github;
 pub mod hardware;
 mod igel;
 mod lc0;
+pub mod library;
 mod nnue_batch;
 mod obsidian;
+mod recipes;
 mod reckless;
 pub mod tools;
 
@@ -46,6 +48,7 @@ pub struct BuildOptions {
     pub weights_path: String,
     pub auto_architecture: bool,
     pub zig_path: String,
+    pub release_id: u64,
 }
 
 impl Default for BuildOptions {
@@ -69,6 +72,7 @@ impl Default for BuildOptions {
             weights_path: String::new(),
             auto_architecture: false,
             zig_path: String::new(),
+            release_id: 0,
         }
     }
 }
@@ -120,6 +124,8 @@ pub struct Snapshot {
     pub output: String,
     pub log_path: String,
     pub log_tail: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub library: Vec<library::Row>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -181,6 +187,14 @@ pub fn plan(options: &BuildOptions) -> Result<Plan> {
         }
     }
     let options = &resolved;
+    if options.release_id != 0
+        && !recipes::release_rule(&options.engine)
+            .is_some_and(|recipe| recipe.accepts(&options.source_ref))
+    {
+        return Err(recipes::needs_recipe(
+            "no release recipe matches this engine and tag.",
+        ));
+    }
     if !matches!(
         options.engine.as_str(),
         "stockfish"
@@ -331,23 +345,7 @@ impl Compiler {
     pub fn start(&self, options: BuildOptions) -> Result<()> {
         let _gate = self.gate.lock().unwrap();
         let options = plan(&options)?.options;
-        if matches!(self.snapshot().state.as_str(), "Running" | "Cancelling") {
-            return Err("A build is already running.".into());
-        }
-        if let Some(worker) = self.worker.lock().unwrap().take() {
-            let _ = worker.join();
-        }
-        self.cancel.store(false, Ordering::SeqCst);
-        {
-            let mut shared = self.shared.lock().unwrap();
-            shared.lines.clear();
-            shared.host_reported = false;
-            shared.snapshot = Snapshot {
-                state: "Running".into(),
-                phase: "Prepare workspace".into(),
-                ..Snapshot::default()
-            };
-        }
+        self.prepare()?;
         let shared = self.shared.clone();
         let cancel = self.cancel.clone();
         *self.worker.lock().unwrap() = Some(thread::spawn(move || {
@@ -385,6 +383,27 @@ impl Compiler {
             }
             state.log = None;
         }));
+        Ok(())
+    }
+
+    fn prepare(&self) -> Result<()> {
+        if matches!(self.snapshot().state.as_str(), "Running" | "Cancelling") {
+            return Err("A build is already running.".into());
+        }
+        if let Some(worker) = self.worker.lock().unwrap().take() {
+            let _ = worker.join();
+        }
+        self.cancel.store(false, Ordering::SeqCst);
+        {
+            let mut shared = self.shared.lock().unwrap();
+            shared.lines.clear();
+            shared.host_reported = false;
+            shared.snapshot = Snapshot {
+                state: "Running".into(),
+                phase: "Prepare workspace".into(),
+                ..Snapshot::default()
+            };
+        }
         Ok(())
     }
 
@@ -678,6 +697,8 @@ fn build(
         return avalanche::build(options, &job, shared, cancel);
     }
     let root = Path::new(&options.msys_root);
+    let recipe = &*recipes::STOCKFISH;
+    let repository = format!("https://github.com/{}", recipe.release.repository);
     let path = std::env::join_paths(
         [root.join("ucrt64/bin"), root.join("usr/bin")]
             .into_iter()
@@ -704,19 +725,14 @@ fn build(
     };
     phase(shared, "Fetch Stockfish source");
     execute_git(&["init", "--quiet"])?;
-    execute_git(&[
-        "remote",
-        "add",
-        "origin",
-        "https://github.com/official-stockfish/Stockfish.git",
-    ])?;
+    execute_git(&["remote", "add", "origin", &format!("{repository}.git")])?;
     execute_git(&[
         "-c",
         "core.hooksPath=NUL",
         "fetch",
         "--depth=1",
         "origin",
-        &options.source_ref,
+        &fetch_reference(options),
     ])?;
     execute_git(&[
         "-c",
@@ -726,16 +742,21 @@ fn build(
         "FETCH_HEAD",
     ])?;
     let commit = execute_git(&["rev-parse", "HEAD"])?;
+    let compile_dir = source.join(&recipe.source_directory);
+    let makefile = fs::read_to_string(compile_dir.join(&recipe.makefile))
+        .map_err(|e| recipes::needs_recipe(format!("Stockfish Makefile: {e}")))?;
     let make = |args: &[&str]| {
         run(
             Command::new(root.join("usr/bin/bash.exe"))
                 .args(["--noprofile", "--norc", "-c", "exec make \"$@\"", "cec"])
                 .args(args)
-                .current_dir(source.join("src"))
+                .current_dir(&compile_dir)
                 .env("PATH", &path)
                 .env("MSYSTEM", "UCRT64")
                 .env("CHERE_INVOKING", "1")
-                .env("OS", "Windows_NT"),
+                .env("OS", "Windows_NT")
+                .env_remove("MAKEFLAGS")
+                .env_remove("MFLAGS"),
             shared,
             cancel,
             Duration::from_secs(7200),
@@ -752,8 +773,63 @@ fn build(
         Duration::from_secs(30),
         None,
     )?;
+    let target = if options.pgo {
+        &recipe.targets.optimized
+    } else {
+        &recipe.targets.regular
+    };
+    let mut selected_arch = options.architecture.clone();
+    let mut network_records = Vec::new();
+    if options.release_id != 0 {
+        for target in [
+            Some(&recipe.targets.network),
+            Some(target),
+            options.strip.then_some(&recipe.targets.strip),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if !makefile.lines().any(|line| {
+                line.strip_prefix(target)
+                    .is_some_and(|rest| rest.starts_with(':'))
+            }) {
+                return Err(recipes::needs_recipe(format!(
+                    "Stockfish make target {target} is unavailable."
+                )));
+            }
+        }
+        let help = make(&["help"])?;
+        let targets: Vec<_> = help
+            .lines()
+            .filter_map(|line| line.split_once('>').map(|(name, _)| name.trim()))
+            .collect();
+        let cpu = hardware::detect();
+        selected_arch = [cpu.recommended.as_str(), "native", "x86-64"]
+            .into_iter()
+            .find(|arch| targets.contains(arch))
+            .ok_or_else(|| {
+                recipes::needs_recipe(
+                    "the source did not report a compatible Stockfish CPU target.",
+                )
+            })?
+            .into();
+    }
+    let names = if options.release_id != 0 {
+        recipe.network_names(&compile_dir)?
+    } else {
+        Vec::new()
+    };
     phase(shared, "Download NNUE networks");
-    make(&["net"])?;
+    make(&[&recipe.targets.network])?;
+    for name in names {
+        let hash = recipes::sha256(&compile_dir.join(&name))?;
+        if !hash.starts_with(recipes::network_prefix(&name).unwrap()) {
+            return Err(format!(
+                "The downloaded Stockfish network {name} did not match its hash prefix."
+            ));
+        }
+        network_records.push(serde_json::json!({ "file": name, "sha256": hash }));
+    }
     phase(
         shared,
         if options.pgo {
@@ -763,39 +839,15 @@ fn build(
         },
     );
     let jobs = format!("-j{}", options.jobs);
-    let arch = format!("ARCH={}", options.architecture);
-    make(&[
-        &jobs,
-        if options.pgo {
-            "profile-build"
-        } else {
-            "build"
-        },
-        &arch,
-        "COMP=mingw",
-    ])?;
+    let arch = format!("ARCH={selected_arch}");
+    let compiler_flag = format!("COMP={}", recipe.compiler);
+    make(&[&jobs, target, &arch, &compiler_flag])?;
     if options.strip {
         phase(shared, "Strip executable symbols");
-        make(&["strip", &arch, "COMP=mingw"])?;
+        make(&[&recipe.targets.strip, &arch, &compiler_flag])?;
     }
     phase(shared, "Verify UCI handshake");
-    let executable = source.join("src/stockfish.exe");
-    let uci = run(
-        Command::new(&executable)
-            .current_dir(source.join("src"))
-            .env("PATH", &path),
-        shared,
-        cancel,
-        Duration::from_secs(60),
-        Some("uci\nisready\nquit\n"),
-    )?;
-    if !uci.lines().any(|line| line.trim() == "uciok")
-        || !uci.lines().any(|line| line.trim() == "readyok")
-    {
-        return Err(
-            "The compiled engine did not complete its UCI handshake. Review the log.".into(),
-        );
-    }
+    let executable = compile_dir.join("stockfish.exe");
     phase(shared, "Save build result");
     let result = job.join("result");
     fs::create_dir(&result).map_err(|e| e.to_string())?;
@@ -805,6 +857,22 @@ fn build(
     let system_path =
         PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:/Windows".into()))
             .join("System32");
+    let mut handshake = Command::new(&output);
+    handshake.current_dir(&result).env("PATH", &system_path);
+    shared.lock().unwrap().line(&format!("$ {handshake:?}"));
+    let uci = run_unlogged(
+        &mut handshake,
+        shared,
+        cancel,
+        Duration::from_secs(60),
+        ProcessInput::Uci,
+    )?;
+    if !["uciok", "readyok"]
+        .iter()
+        .all(|token| uci.lines().any(|line| line.trim() == *token))
+    {
+        return Err("The compiled engine did not complete its standalone UCI handshake.".into());
+    }
     let bench = run(
         Command::new(&output)
             .args(["bench", "16", "1", "4", "default", "depth"])
@@ -815,7 +883,11 @@ fn build(
         Duration::from_secs(60),
         None,
     )?;
-    if !bench.contains("Nodes searched") {
+    if !bench.lines().any(|line| {
+        line.split_once(':').is_some_and(|(label, value)| {
+            label.trim() == "Nodes searched" && value.trim().parse::<u64>().is_ok_and(|n| n > 0)
+        })
+    }) {
         return Err(
             "The standalone engine did not finish its search benchmark. Review the log.".into(),
         );
@@ -832,7 +904,7 @@ fn build(
             fs::copy(source.join(name), result.join(name)).map_err(|e| e.to_string())?;
         }
     }
-    let manifest = serde_json::json!({ "schemaVersion": 1, "engine": "stockfish", "sourceUrl": "https://github.com/official-stockfish/Stockfish", "commit": commit.trim(), "options": options, "compiler": compiler, "uciVerified": true, "standaloneSearchVerified": true, "logPath": log_path, "sourceArchive": "source.tar" });
+    let manifest = serde_json::json!({ "schemaVersion": 2, "engine": "stockfish", "sourceUrl": repository, "commit": commit.trim(), "options": options, "compiler": compiler, "recipe": recipe.release.id, "actualArchitecture": selected_arch, "networks": network_records, "uciVerified": true, "standaloneSearchVerified": true, "logPath": log_path, "sourceArchive": "source.tar" });
     fs::write(
         result.join("build.json"),
         serde_json::to_vec_pretty(&manifest).unwrap(),
@@ -841,10 +913,18 @@ fn build(
     Ok(output.to_string_lossy().into_owned())
 }
 
+fn fetch_reference(options: &BuildOptions) -> String {
+    if options.release_id == 0 {
+        options.source_ref.clone()
+    } else {
+        format!("refs/tags/{}", options.source_ref)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn options() -> (tempfile::TempDir, BuildOptions) {
+    pub(super) fn options() -> (tempfile::TempDir, BuildOptions) {
         let dir = tempfile::tempdir().unwrap();
         for name in [
             "usr/bin/bash.exe",

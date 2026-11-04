@@ -32,38 +32,8 @@ public sealed partial class MainWindow : Window
     private static readonly string[] Engines = EngineCatalog.Items.Select(e => e.Id).ToArray();
     private static string EngineName(string engine) => EngineCatalog.Name(engine);
     private string OptionsPath(string engine) => engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, $"{engine}-options.json");
-    private string RecommendedArchitecture => _engine switch
-    {
-        "avalanche" or "viridithas" => "native",
-        "plentychess" => _hardware.PlentychessRecommended,
-        "stormphrax" => _hardware.StormphraxChoices.FirstOrDefault() ?? "",
-        "patricia" or "koivisto" or "seer" => ArchitectureChoices.FirstOrDefault() ?? "",
-        "alexandria" when _hardware.CppRecommended == "x86-64" => "",
-        "caissa" or "alexandria" => _hardware.CppRecommended,
-        "igel" => _hardware.IgelRecommended,
-        "reckless" => _hardware.RecklessRecommended,
-        "obsidian" => _hardware.ObsidianRecommended,
-        "berserk" => _hardware.BerserkRecommended,
-        _ => _hardware.Recommended,
-    };
-    private bool SupportsPgo => _engine is not ("reckless" or "igel" or "caissa" or "alexandria" or "avalanche" or "stormphrax" or "patricia" or "koivisto" or "seer");
-    private bool HasPinnedSource => _engine is "viridithas" or "patricia" or "koivisto" or "seer";
-    private IEnumerable<string> ArchitectureChoices => _engine switch
-    {
-        "avalanche" => new[] { "native", "x86_64" },
-        "plentychess" => _hardware.PlentychessChoices,
-        "stormphrax" => _hardware.StormphraxChoices,
-        "viridithas" => new[] { "native" },
-        "patricia" or "seer" => _hardware.PlentychessChoices.Count > 0 ? new[] { "x86-64-v3" } : Array.Empty<string>(),
-        "koivisto" => _hardware.CppChoices.Where(c => c == "avx2"),
-        "caissa" => _hardware.CppChoices,
-        "alexandria" => _hardware.CppChoices.Where(c => c != "x86-64"),
-        "igel" => _hardware.IgelChoices,
-        "reckless" => _hardware.RecklessChoices,
-        "obsidian" => _hardware.ObsidianChoices,
-        "berserk" => _hardware.BerserkChoices,
-        _ => _hardware.Choices,
-    };
+    private string RecommendedArchitecture => _hardware.Recommended;
+    private IEnumerable<string> ArchitectureChoices => _hardware.Choices;
     public BuildViewModel Model { get; } = new();
     public MainWindow(string? dataFolder = null)
     {
@@ -100,16 +70,19 @@ public sealed partial class MainWindow : Window
         LoadOptions(options);
         ToolSetupPane.ToolInstalled += id =>
         {
-            if (id is "msys2" or "gcc" or "clang" && string.IsNullOrWhiteSpace(Model.MsysRoot)) Model.MsysRoot = _core.Call(Request.Types.Operation.Defaults).Options.MsysRoot;
-            if (id == "zig" && _engine == "avalanche") ZigPath.Text = _core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "avalanche" }).Options.ZigPath;
+            if (id is "msys2" or "gcc" && string.IsNullOrWhiteSpace(Model.MsysRoot)) Model.MsysRoot = _core.Call(Request.Types.Operation.Defaults).Options.MsysRoot;
             if (id == "meson" && _engine == "lc0") PythonPath.Text = _core.Call(Request.Types.Operation.Defaults, new BuildOptions { Engine = "lc0" }).Options.PythonPath;
         };
         Engine.SelectionChanged += Engine_Changed;
-        if (!_verification) _ = LoadSourcesAsync(1);
         _timer = DispatcherQueue.CreateTimer();
         _timer.Interval = TimeSpan.FromMilliseconds(400);
         _timer.Tick += (_, _) => Refresh();
         _timer.Start();
+        CheckOnStartup.IsChecked = _preferences.CheckReleasesOnStartup;
+        ShowArea("library");
+        PreviewLibrary();
+        UpdateLibraryControls();
+        if (!_verification && _preferences.CheckReleasesOnStartup) _ = CheckLibraryAsync();
         AppWindow.Closing += (window, e) => { if (!_allowClose) { e.Cancel = true; _ = CloseAsync(); } };
     }
     public void ConfigureWindow()
@@ -148,58 +121,24 @@ public sealed partial class MainWindow : Window
         Engine.SelectedIndex = Array.IndexOf(Engines, _engine);
         ShowArchitectures();
         Model.SourceRef = options.SourceRef; Model.MsysRoot = options.MsysRoot; Model.OutputRoot = options.OutputRoot;
-        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && SupportsPgo; Strip.IsChecked = options.Strip;
+        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && _engine == "stockfish"; Strip.IsChecked = options.Strip;
         AutoArchitecture.IsChecked = options.AutoArchitecture;
         foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == options.Architecture) Architecture.SelectedItem = item;
-        ZigPath.Text = options.ZigPath;
         PythonPath.Text = options.PythonPath; VisualStudio.Text = options.VisualStudio;
         CudaRoot.Text = options.CudaRoot; WeightsPath.Text = options.WeightsPath;
         Backend.SelectedIndex = options.Backend == "eigen" ? 1 : 0;
-        // Stockfish and Berserk share the MSYS2 GCC controls; Berserk compiles in one invocation, so parallel jobs do not apply.
-        CpuBuildOptions.Visibility = _engine != "lc0" ? Visibility.Visible : Visibility.Collapsed;
-        MsysOptions.Visibility = _engine is "lc0" or "reckless" or "avalanche" or "viridithas" ? Visibility.Collapsed : Visibility.Visible;
-        RustRequirements.Visibility = _engine == "reckless" ? Visibility.Visible : Visibility.Collapsed;
-        Pgo.Visibility = SupportsPgo ? Visibility.Visible : Visibility.Collapsed;
-        SourceBrowser.Visibility = HasPinnedSource ? Visibility.Collapsed : Visibility.Visible;
-        SourceRef.IsReadOnly = HasPinnedSource || SourceChannel.SelectedIndex != 2;
-        AutoArchitecture.Visibility = HasPinnedSource ? Visibility.Collapsed : Visibility.Visible;
-        ZigOptions.Visibility = _engine == "avalanche" ? Visibility.Visible : Visibility.Collapsed;
-        Lc0Options.Visibility = _engine == "lc0" ? Visibility.Visible : Visibility.Collapsed;
-        Jobs.Visibility = _engine is "berserk" or "igel" or "patricia" or "koivisto" ? Visibility.Collapsed : Visibility.Visible;
+        var stockfish = _engine == "stockfish";
+        CpuBuildOptions.Visibility = MsysOptions.Visibility = Pgo.Visibility = AutoArchitecture.Visibility =
+            stockfish ? Visibility.Visible : Visibility.Collapsed;
+        Lc0Options.Visibility = stockfish ? Visibility.Collapsed : Visibility.Visible;
+        SourceRef.IsReadOnly = SourceChannel.SelectedIndex != 2;
         CompileButton.Content = StartMenu.Text = $"Compile {EngineName(_engine)}";
-        SourceHint.Text = _engine switch
-        {
-            "plentychess" => "Default: PlentyChess 8.0.0. MSYS2 UCRT64 Clang and LLD, with an embedded network. PGO requires LLVM profiling tools.",
-            "stormphrax" => "Default: Stormphrax v8.0.0. MSYS2 UCRT64 Clang and LLD, with an embedded network. PGO is unavailable.",
-            "viridithas" => "Viridithas v20.0.0 uses stable MSVC Rust and its verified network. PGO requires the matching Rust LLVM tools. This build omits Syzygy.",
-            "patricia" => "Patricia 5.1 uses MSYS2 UCRT64 Clang and LLD and embeds its three tracked networks.",
-            "koivisto" => "Koivisto v9.0 uses MSYS2 UCRT64 GCC and embeds the verified network from the pinned network repository.",
-            "seer" => "Seer v2.8.0 uses MSYS2 UCRT64 GCC and embeds its verified release network.",
-            "avalanche" => "Default: Avalanche v5.0.0. Zig 0.17.0, embedded tracked network and vendored dependencies. PGO is unavailable.",
-            "alexandria" => "Default: Alexandria v9.1.0. GCC regular build with a source-pinned, verified and preprocessed network. PGO is unavailable.",
-            "caissa" => "Default: Caissa 2.0. GCC regular build with a hash-checked embedded network. PGO is unavailable.",
-            "lc0" => "Default: Lc0 v0.32.1. Network weights are selected separately below.",
-            "igel" => "Default: Igel 3.8.0. Standard NNUE network embedded; AVX2 required. GCC regular build with Syzygy, without PGO.",
-            "reckless" => "Default: Reckless v0.9.0. Rust CPU build with an embedded network; Syzygy and PGO are not included.",
-            "obsidian" => "Default: Obsidian v16.0. The source-selected network is downloaded and embedded; its SHA-256 is recorded.",
-            "berserk" => "Default: Berserk 14. The network named by the source is downloaded, verified and embedded in the executable.",
-            _ => "Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit.",
-        };
-        ToolTipService.SetToolTip(SourceRef, _engine switch
-        {
-            "plentychess" => "Select an upstream PlentyChess release tag, branch or commit. Default: b-v8.0.0.",
-            "stormphrax" => "Select an upstream Stormphrax release tag, branch or commit. Default: v8.0.0.",
-            "viridithas" or "patricia" or "koivisto" or "seer" => "Builds the release with a verified source-to-network mapping.",
-            "avalanche" => "Select a SnowballSH/Avalanche release tag, branch or exact commit. Default: v5.0.0, verified with Zig 0.17.0.",
-            "alexandria" => "Select a PGG106/Alexandria release tag, branch or exact commit. Default: v9.1.0.",
-            "caissa" => "Select a Witek902/Caissa release tag, branch or exact commit. Default: 2.0.",
-            "lc0" => "Select an official LeelaChessZero/lc0 release tag, branch or exact commit. The default is v0.32.1. Its pinned lczero-common submodule is fetched with it.",
-            "igel" => "Select a vshcherbyna/igel release tag, branch or exact commit. Default: 3.8.0.",
-            "reckless" => "Select a codedeliveryservice/Reckless release tag, branch or exact commit. Default: v0.9.0.",
-            "obsidian" => "Select a gab8192/Obsidian release tag, branch or exact commit. The default is v16.0.",
-            "berserk" => "Select an official jhonnold/berserk release tag, branch or exact commit. The default is 14; main follows development.",
-            _ => "Select an official Stockfish release tag, branch or exact commit. The default is sf_19; master follows development.",
-        });
+        SourceHint.Text = stockfish
+            ? "Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit."
+            : "Default: Lc0 v0.32.1. Choose your network below. The release library can supply a verified default network.";
+        ToolTipService.SetToolTip(SourceRef, stockfish
+            ? "Select a Stockfish release tag, branch or exact commit."
+            : "Select an Lc0 release tag, branch or exact commit. The build fetches its pinned common submodule.");
         _loadingOptions = false;
         AutoArchitecture_Changed(this, null!);
         Backend_Changed(this, null!);
@@ -209,20 +148,7 @@ public sealed partial class MainWindow : Window
         Architecture.Items.Clear();
         foreach (var choice in ArchitectureChoices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
         Architecture.SelectedIndex = Architecture.Items.Count > 0 ? 0 : -1;
-        if (_engine is "plentychess" or "stormphrax" or "viridithas" or "patricia" or "koivisto" or "seer")
-        {
-            ArchitectureExplanation.Text = _engine switch
-            {
-                "viridithas" => "native targets the CPU in this computer.",
-                _ when Architecture.Items.Count == 0 => "This CPU lacks instructions required by the available build targets.",
-                "stormphrax" => "native uses upstream CPU detection, which avoids slow PEXT on older AMD CPUs.",
-                "patricia" or "seer" => "This build targets x86-64-v3, which requires a Haswell-class instruction set.",
-                "koivisto" => "This build targets AVX2.",
-                _ => $"Recommended target {RecommendedArchitecture}. Both targets use Haswell-class instructions. bmi2 enables PEXT move generation.",
-            };
-            return;
-        }
-        ArchitectureExplanation.Text = _engine == "avalanche" ? "native targets this computer using Zig CPU detection. x86_64 builds the portable baseline. Both run the source reference benchmark before success." : _engine == "alexandria" ? $"Recommended Alexandria target: {RecommendedArchitecture}. AVX2/FMA is required for a reference-matching build. Older AMD CPUs avoid PEXT." : _engine == "caissa" ? $"Recommended {EngineName(_engine)} target: {_hardware.CppRecommended}. Only compatible targets are offered; older AMD CPUs avoid PEXT." : _engine == "igel" ? (_hardware.IgelChoices.Count == 0 ? "Igel NNUE requires AVX2 and POPCNT; this CPU cannot run it." : $"Recommended Igel target: {_hardware.IgelRecommended}. AVX2 is required; PEXT is avoided on older AMD CPUs.") : _engine == "reckless" ? $"Recommended Reckless target: {_hardware.RecklessRecommended}. AVX2 uses vector evaluation; x86-64 favors compatibility." : _engine == "obsidian" ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}. Only compatible targets are offered; PEXT is avoided on older AMD CPUs." : _engine == "berserk" ? _hardware.BerserkExplanation : _hardware.Explanation;
+        ArchitectureExplanation.Text = _hardware.Explanation;
     }
     private void Engine_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -268,12 +194,12 @@ public sealed partial class MainWindow : Window
         PythonPath = PythonPath.Text.Trim(), VisualStudio = VisualStudio.Text.Trim(),
         CudaRoot = CudaRoot.Text.Trim(), WeightsPath = WeightsPath.Text.Trim(),
         AutoArchitecture = AutoArchitecture.IsChecked == true,
-        ZigPath = ZigPath.Text.Trim(),
     };
     private static BuildOptions ReadOptions(string json) => Google.Protobuf.JsonParser.Default.Parse<BuildOptions>(json);
     private void ShowProblem(string message) { Notice.Severity = InfoBarSeverity.Error; Notice.Title = "Build needs attention"; Notice.Message = message; Notice.IsOpen = true; }
     private void Preview_Click(object sender, RoutedEventArgs e)
     {
+        ShowArea("compile");
         try
         {
             var preview = "Build preview\n\n" + string.Join("\n\n", _core.Call(Request.Types.Operation.Plan, Options()).Steps);
@@ -284,6 +210,8 @@ public sealed partial class MainWindow : Window
     }
     private void Start_Click(object sender, RoutedEventArgs e)
     {
+        if (LibraryPane.Visibility == Visibility.Visible) { BuildLibrary_Click(sender, e); return; }
+        ShowArea("compile");
         if (ToolSetupPane.SetupActive) { ShowProblem("Finish or cancel build-tool setup before compiling."); return; }
         try
         {
@@ -294,10 +222,28 @@ public sealed partial class MainWindow : Window
             Refresh();
             try
             {
-                File.WriteAllText(OptionsPath(_engine), ScriptExporter.SerializeOptions(options));
-                File.WriteAllText(Path.Combine(DataFolder, "last-engine.txt"), _engine);
+                SaveBuildOptions(options);
             }
             catch (IOException error) { ShowProblem($"Build started, but its options could not be saved: {error.Message}"); }
+        }
+        catch (Exception error) { ShowProblem(error.Message); }
+    }
+    private void SaveBuildOptions(BuildOptions options)
+    {
+        File.WriteAllText(OptionsPath(options.Engine), ScriptExporter.SerializeOptions(options));
+        File.WriteAllText(Path.Combine(DataFolder, "last-engine.txt"), options.Engine);
+        _engineOptions[options.Engine] = options.Clone();
+    }
+
+    private void SaveOptions_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SaveBuildOptions(Options());
+            Notice.Severity = InfoBarSeverity.Success;
+            Notice.Title = "Settings saved";
+            Notice.Message = "The release library will use these tool paths and output settings.";
+            Notice.IsOpen = true;
         }
         catch (Exception error) { ShowProblem(error.Message); }
     }
@@ -313,11 +259,12 @@ public sealed partial class MainWindow : Window
             var s = _core.Call(Request.Types.Operation.Status).Snapshot;
             _active = s.State is "Running" or "Cancelling";
             Model.Status = $"{s.State} — {s.Phase}" + (s.Message.Length > 0 ? $" · {s.Message}" : "");
-            Configuration.IsEnabled = CompileButton.IsEnabled = StartMenu.IsEnabled = PreviewButton.IsEnabled = PreviewMenu.IsEnabled = !_active && !ToolSetupPane.SetupActive;
+            Configuration.IsEnabled = CompileButton.IsEnabled = StartMenu.IsEnabled = PreviewButton.IsEnabled = PreviewMenu.IsEnabled = SaveOptionsButton.IsEnabled = !_active && !ToolSetupPane.SetupActive;
             ToolSetupPane.SetBuildActive(_active);
             if (ToolSetupPane.SetupActive) Model.Status = $"Running - {ToolSetupPane.CurrentPhase}";
             CancelButton.IsEnabled = CancelMenu.IsEnabled = s.State == "Running";
             Progress.IsIndeterminate = _active; Progress.Visibility = _active ? Visibility.Visible : Visibility.Collapsed;
+            RefreshLibraryRun(s);
             if (_active || _lastState is "Running" or "Cancelling") _logPresenter.Update(s.LogTail);
             _output = s.Output; _logPath = s.LogPath;
             ResultButton.IsEnabled = File.Exists(_output); LogButton.IsEnabled = File.Exists(_logPath);
@@ -339,16 +286,6 @@ public sealed partial class MainWindow : Window
     }
     private async void BrowseMsys_Click(object sender, RoutedEventArgs e) { try { if (await PickFolderAsync() is { } path) Model.MsysRoot = path; } catch (Exception error) { ShowProblem(error.Message); } }
     private async void BrowseOutput_Click(object sender, RoutedEventArgs e) { try { if (await PickFolderAsync() is { } path) Model.OutputRoot = path; } catch (Exception error) { ShowProblem(error.Message); } }
-    private async void BrowseZig_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var picker = new FileOpenPicker(); picker.FileTypeFilter.Add(".exe");
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-            if (await picker.PickSingleFileAsync() is { } file) ZigPath.Text = file.Path;
-        }
-        catch (Exception error) { ShowProblem(error.Message); }
-    }
     private async void BrowseWeights_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -392,38 +329,49 @@ public sealed partial class MainWindow : Window
         catch (Exception error) { ShowProblem(error.Message); }
     }
     private void Result_Click(object sender, RoutedEventArgs e) { if (File.Exists(_output)) OpenPath(Path.GetDirectoryName(_output)!); }
-    private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine switch
-    {
-        "lc0" => "https://github.com/LeelaChessZero/lc0/releases",
-        "avalanche" => "https://github.com/SnowballSH/Avalanche/releases",
-        "plentychess" => "https://github.com/Yoshie2000/PlentyChess/releases",
-        "stormphrax" => "https://github.com/Ciekce/Stormphrax/releases",
-        "viridithas" => "https://github.com/cosmobobak/viridithas/releases",
-        "patricia" => "https://github.com/Adam-Kulju/Patricia/releases",
-        "koivisto" => "https://github.com/Luecx/Koivisto/releases",
-        "seer" => "https://github.com/connormcmonigle/seer-nnue/releases",
-        "alexandria" => "https://github.com/PGG106/Alexandria/releases",
-        "caissa" => "https://github.com/Witek902/Caissa/releases",
-        "igel" => "https://github.com/vshcherbyna/igel/releases",
-        "reckless" => "https://github.com/codedeliveryservice/Reckless/releases",
-        "obsidian" => "https://github.com/gab8192/Obsidian/releases",
-        "berserk" => "https://github.com/jhonnold/berserk/releases",
-        _ => "https://github.com/official-stockfish/Stockfish/releases",
-    });
+    private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine == "lc0"
+        ? "https://github.com/LeelaChessZero/lc0/releases"
+        : "https://github.com/official-stockfish/Stockfish/releases");
     private void Networks_Click(object sender, RoutedEventArgs e) => OpenPath("https://lczero.org/play/networks/bestnets/");
     private void Log_Click(object sender, RoutedEventArgs e) { if (File.Exists(_logPath)) OpenPath(_logPath); }
-    // Navigation (standard section 7, suite workspace): Compile, Downloads and Settings.
-    private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args) =>
-        ShowArea(args.IsSettingsSelected ? "settings" : (args.SelectedItemContainer?.Tag as string) ?? "compile");
+    private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (_timer is not null)
+            ShowArea(args.IsSettingsSelected ? "settings" : (args.SelectedItemContainer?.Tag as string) ?? "library");
+    }
+
     private void ShowArea(string area)
     {
-        CompilePage.Visibility = area == "compile" ? Visibility.Visible : Visibility.Collapsed;
+        var wasAdvanced = CompilePage.Visibility == Visibility.Visible && OptionsScroll.Visibility == Visibility.Visible;
+        var library = area == "library";
+        var advanced = area == "compile";
+        CompilePage.Visibility = library || advanced ? Visibility.Visible : Visibility.Collapsed;
+        LibraryPane.Visibility = LibraryActions.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
+        OptionsScroll.Visibility = AdvancedActions.Visibility = advanced ? Visibility.Visible : Visibility.Collapsed;
         DownloadPane.Visibility = area == "downloads" ? Visibility.Visible : Visibility.Collapsed;
         if (area == "settings") ToolSetupPane.Configure(Options(), _verification ? Path.Combine(DataFolder, "tools") : "", _verification);
         SettingsPage.Visibility = area == "settings" ? Visibility.Visible : Visibility.Collapsed;
-        var item = area switch { "downloads" => DownloadsItem, "settings" => Navigation.SettingsItem, _ => (object)CompileItem };
+        var item = area switch
+        {
+            "compile" => CompileItem,
+            "downloads" => DownloadsItem,
+            "settings" => Navigation.SettingsItem,
+            _ => (object)LibraryItem,
+        };
         if (!ReferenceEquals(Navigation.SelectedItem, item)) Navigation.SelectedItem = item;
+        if (library)
+        {
+            if (wasAdvanced && !_active) PreviewLibrary();
+            UpdateLibraryControls();
+        }
+        if (advanced)
+        {
+            StartMenu.Text = $"Compile {EngineName(_engine)}";
+            if (!wasAdvanced && !_verification) _ = LoadSourcesAsync(1);
+        }
     }
+
+    private void ShowLibrary_Click(object sender, RoutedEventArgs e) => ShowArea("library");
     private void ShowCompile_Click(object sender, RoutedEventArgs e) => ShowArea("compile");
     private void ShowDownloads_Click(object sender, RoutedEventArgs e) => ShowArea("downloads");
     private void Tools_Click(object sender, RoutedEventArgs e) { ShowArea("settings"); DispatcherQueue.TryEnqueue(() => ToolSetupPane.StartBringIntoView()); }
@@ -434,14 +382,20 @@ public sealed partial class MainWindow : Window
         "cli" => "GitHub CLI account",
         _ => "Anonymous, without signing in",
     };
-    private const string BerserkRequirements = "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make wget mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Berserk is built with UCRT64 GCC and a static runtime, so the result needs no MSYS2 DLLs.\n\nThe build downloads the network named by the selected source from jhonnold/berserk-networks, checks its SHA-256 against the file name and embeds it in berserk.exe. Source and network downloads need internet access. Every build has a new job folder; existing builds are kept.";
     private async void Requirements_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
         Title = "Build requirements",
         CloseButtonText = "Close",
-        Content = new TextBlock { Text = _engine == "patricia" ? "Install MSYS2 UCRT64 Clang and LLD in Settings > Build tools. Select the MSYS2 root. Patricia embeds all three networks from its release source and runs a standalone benchmark." : _engine is "koivisto" or "seer" ? "Install MSYS2 UCRT64 GCC, make, Git and curl. Select the MSYS2 root. The build downloads and verifies the release network before embedding it in the executable." : _engine is "plentychess" or "stormphrax" ? "Install the MSYS2 UCRT64 Clang and LLVM packages under Settings > Build tools. Select the MSYS2 root. The build downloads and embeds the network selected by the source. PlentyChess supports regular builds and LLVM PGO. Stormphrax supports regular builds." : _engine == "viridithas" ? "Install stable MSVC Rust through Rustup, Microsoft C++ build tools and Windows SDK, Git and curl. For PGO, run rustup component add llvm-tools --toolchain stable-x86_64-pc-windows-msvc before starting. The verified v20.0.0 network is fetched and embedded." : _engine == "avalanche" ? "Use Zig 0.17.0 and Git for Windows. Settings > Build tools can install Zig into this app’s tools folder after verifying its archive. No separate C compiler is needed. Avalanche includes its source-selected network and vendored translator. PGO is unavailable; every result must match bench.nodes with only System32 on PATH." : _engine is "caissa" or "alexandria" ? "Install MSYS2 UCRT64 GCC, make, git and curl. The selected engine uses a regular static GCC build with its source-selected network embedded. Its published network hash is checked. Parallel jobs apply. PGO is not included." : _engine == "igel" ? "Install MSYS2 UCRT64 GCC, make, git and curl. Igel NNUE requires an AVX2/POPCNT CPU. This adapter builds the standard embedded network with GCC and Syzygy support. Clang PGO, HCE and the separate Fischer Random network variant are not included. The network SHA-256 is checked; the standalone benchmark must match the source commit when it provides a reference node count. Each build has a new job folder." : _engine == "reckless" ? "Install Rust 1.88 or later with the x86_64-pc-windows-msvc target, Visual Studio x64 C++ build tools and Windows SDK, Git for Windows and curl. Cargo, rustc, git and curl must be on PATH. Restart the app after changing PATH. This adapter builds without Syzygy tablebases or PGO. Its source-selected network is embedded; each result passes UCI and a standalone benchmark. Use Settings > Build tools for explicit setup." : _engine == "obsidian" ? "Install MSYS2 UCRT64 GCC, git, make and curl. Choose the MSYS2 installation root. Obsidian embeds the network selected by its source into a static executable. The build records its SHA-256; upstream does not publish a digest for comparison. Regular and PGO builds are supported. Each result must pass UCI and a standalone benchmark. Existing jobs are preserved." : _engine == "berserk" ? BerserkRequirements : _engine == "lc0" ? "Install Git for Windows, Python 3, and Visual Studio with Desktop development with C++ and a Windows SDK. In the selected Python environment, run:\n\npython -m pip install meson ninja\n\nCPU (Eigen) needs no separate math library. NVIDIA GPU (CUDA) needs the CUDA Toolkit and a compatible driver. CUDA 12.x requires Visual Studio 2022. cuDNN is not required.\n\nChoose an Lc0 .pb.gz or .pb network from Help > Lc0 network downloads. A real search checks the selected network and backend. Large networks need more memory. The result includes the network and required CUDA DLLs; it still needs a compatible NVIDIA GPU/driver.\n\nUse Settings > Build tools to inspect or explicitly install the required tools." : "Install MSYS2, update it, then run in its UCRT64 terminal:\n\npacman -Syu\npacman -S --needed git make mingw-w64-ucrt-x86_64-gcc\n\nChoose the MSYS2 root folder, not its ucrt64 or bin folder. Source and NNUE downloads need internet access. Every build has a new job folder; existing builds are kept.", TextWrapping = TextWrapping.Wrap }
+        Content = new TextBlock
+        {
+            Text = _engine == "lc0"
+                ? "Lc0 requires Git, Python with Meson and Ninja, and the Visual Studio x64 C++ tools and Windows SDK. NVIDIA GPU builds also need a compatible CUDA Toolkit and driver. Use Settings > Build tools for setup. The release library can supply a verified default network."
+                : "Stockfish requires Git and MSYS2 UCRT64 GCC, make and download tools. Select the MSYS2 installation root. Use Settings > Build tools to check and install prerequisites.",
+            TextWrapping = TextWrapping.Wrap,
+        },
     }.ShowAsync();
+
     private async void About_Click(object sender, RoutedEventArgs e) => await new ContentDialog
     {
         XamlRoot = Root.XamlRoot,
@@ -467,6 +421,7 @@ public sealed partial class MainWindow : Window
         SaveWindowBounds();
         _timer.Stop(); AppWindow.Hide();
         await _sourceSession.DisposeAsync();
+        await _librarySession.DisposeAsync();
         await DownloadPane.DisposeAsync();
         await ToolSetupPane.DisposeAsync();
         await Task.Run(_core.Dispose);

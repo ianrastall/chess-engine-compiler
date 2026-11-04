@@ -22,9 +22,10 @@
                 <MenuFlyoutItem Text="Copy log" Click="CopyLog_Click"/>
             </MenuBarItem>
             <MenuBarItem Title="View">
-                <MenuFlyoutItem Text="Compile" Click="ShowCompile_Click">
+                <MenuFlyoutItem Text="Release library" Click="ShowLibrary_Click">
                     <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Number1"/></MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
+                <MenuFlyoutItem Text="Advanced build" Click="ShowCompile_Click"/>
                 <MenuFlyoutItem Text="Downloads" Click="ShowDownloads_Click">
                     <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Number2"/></MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
@@ -32,7 +33,7 @@
                 <MenuFlyoutItem x:Name="PowerShellLogMenu" Text="Watch log in PowerShell" Click="PowerShellLog_Click" IsEnabled="False"/>
             </MenuBarItem>
             <MenuBarItem Title="Build">
-                <MenuFlyoutItem x:Name="PreviewMenu" Text="Preview build" Click="Preview_Click"/>
+                <MenuFlyoutItem x:Name="PreviewMenu" Text="Preview advanced build" Click="Preview_Click"/>
                 <MenuFlyoutItem x:Name="StartMenu" Text="Compile Stockfish" Click="Start_Click">
                     <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Key="F5"/></MenuFlyoutItem.KeyboardAccelerators>
                 </MenuFlyoutItem>
@@ -54,7 +55,10 @@
                         OpenPaneLength="{StaticResource JupiterNavigationPaneWidth}" SelectionChanged="Navigation_SelectionChanged"
                         BorderBrush="{ThemeResource JupiterSeparatorBrush}" BorderThickness="0,1,0,0">
             <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="CompileItem" Content="Compile" Tag="compile" IsSelected="True">
+                <NavigationViewItem x:Name="LibraryItem" Content="Release library" Tag="library" IsSelected="True">
+                    <NavigationViewItem.Icon><FontIcon Glyph="&#xE8B7;"/></NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="CompileItem" Content="Advanced build" Tag="compile">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE90F;"/></NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem x:Name="DownloadsItem" Content="Downloads" Tag="downloads">
@@ -68,7 +72,37 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="420"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Grid RowSpacing="16">
                         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                        <ScrollViewer x:Name="OptionsScroll" VerticalScrollBarVisibility="Auto">
+                        <Grid x:Name="LibraryPane" RowSpacing="12">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Release library" Style="{StaticResource JupiterSectionHeadingTextStyle}"/>
+                                <ComboBox x:Name="LibraryEngine" Header="Engines" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="LibrarySelection_Changed">
+                                    <ComboBoxItem Content="Stockfish and Lc0"/><ComboBoxItem Content="Stockfish"/><ComboBoxItem Content="Lc0"/>
+                                </ComboBox>
+                                <ComboBox x:Name="LibraryScope" Header="Releases" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="LibrarySelection_Changed">
+                                    <ComboBoxItem Content="New releases"/><ComboBoxItem Content="Latest release per engine"/><ComboBoxItem Content="All releases"/>
+                                </ComboBox>
+                                <TextBlock x:Name="LibraryStatus" Text="Check for stable releases from Stockfish and Lc0." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                            </StackPanel>
+                            <ListView x:Name="LibraryResults" Grid.Row="1" SelectionChanged="LibraryRow_Changed" AutomationProperties.Name="Release queue">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Spacing="4" Margin="0,4">
+                                            <TextBlock Text="{Binding Label}" Style="{StaticResource JupiterBodyTextStyle}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding State}" Style="{StaticResource JupiterCaptionTextStyle}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <StackPanel Grid.Row="2" Spacing="8">
+                                <TextBlock x:Name="LibraryDetail" TextWrapping="Wrap" MaxLines="4" TextTrimming="CharacterEllipsis" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="LibraryResultButton" Content="Open result" Click="LibraryResult_Click" IsEnabled="False"/>
+                                    <Button x:Name="LibraryLogButton" Content="Open job log" Click="LibraryLog_Click" IsEnabled="False"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                        <ScrollViewer x:Name="OptionsScroll" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                             <ContentControl x:Name="Configuration" HorizontalContentAlignment="Stretch" Padding="0,0,12,12"><StackPanel Spacing="16">
                                 <ComboBox x:Name="Engine" Header="Engine" HorizontalAlignment="Stretch" DisplayMemberPath="Name" ToolTipService.ToolTip="Select the engine to compile. Each engine retains its own settings."/>
                                 <StackPanel x:Name="SourceBrowser" Spacing="8">
@@ -102,7 +136,6 @@
                                         ToolTipService.ToolTip="Each build creates a new jobs subfolder containing its source, downloaded network, full log and verified result. Previous builds are retained. Allow space for the source, network and compiler output."/>
                                     <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseOutput_Click"/>
                                 </Grid>
-                                <TextBlock x:Name="RustRequirements" Text="Requires Rust/Cargo, MSVC x64 C++ tools, Windows SDK, Git and curl on PATH. This build omits Syzygy and PGO." Visibility="Collapsed" TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
                                 <StackPanel x:Name="CpuBuildOptions" Spacing="16">
                                     <TextBlock x:Name="HardwareSummary" Style="{StaticResource JupiterCaptionTextStyle}"/>
                                     <CheckBox x:Name="AutoArchitecture" Content="Use recommended architecture" Checked="AutoArchitecture_Changed" Unchecked="AutoArchitecture_Changed" ToolTipService.ToolTip="Detect this CPU’s supported instructions and select the recommended target for the selected engine automatically. Older AMD Zen CPUs avoid slow BMI2/PEXT. Turn this off to choose another compatible target. Recommendations are not a speed benchmark."/>
@@ -115,14 +148,6 @@
                                         ToolTipService.ToolTip="Build an instrumented engine, run the engine’s built-in benchmark to collect execution profiles, then rebuild using those profiles to guide optimization. This takes longer and uses this CPU during training, but can improve engine speed. Turn it off for a faster regular build."/>
                                     <CheckBox x:Name="Strip" Content="Strip executable symbols" IsChecked="True"
                                         ToolTipService.ToolTip="Remove debugging and symbol information from the finished executable to reduce its file size. This does not remove chess features. Turn it off if you need symbols for debugging or diagnosing crashes."/>
-                                </StackPanel>
-                                <StackPanel x:Name="ZigOptions" Spacing="4" Visibility="Collapsed">
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <TextBox x:Name="ZigPath" Header="Zig executable (version 0.17.0)" IsReadOnly="True" ToolTipService.ToolTip="Select Zig 0.17.0, or use Settings > Build tools for a verified installation."/>
-                                        <Button Grid.Column="1" Content="Browse&#x2026;" VerticalAlignment="Bottom" Click="BrowseZig_Click"/>
-                                    </Grid>
-                                    <TextBlock Text="Avalanche needs Zig 0.17.0. Use Settings > Build tools for a verified installation without PATH changes." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
                                 </StackPanel>
                                 <StackPanel x:Name="Lc0Options" Spacing="16" Visibility="Collapsed">
                                     <StackPanel Spacing="4">
@@ -149,9 +174,14 @@
                                     ToolTipService.ToolTip="Maximum compiler tasks at once. More jobs can shorten compilation but use more CPU and RAM. Reduce this if the computer becomes unresponsive or runs out of memory. This does not set the engine’s playing threads."/>
                             </StackPanel></ContentControl>
                         </ScrollViewer>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                        <StackPanel x:Name="LibraryActions" Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="BuildLibrary" Content="Build new releases" Style="{StaticResource AccentButtonStyle}" Click="BuildLibrary_Click" IsEnabled="False"/>
+                            <Button x:Name="CheckLibrary" Content="Check releases" Click="CheckLibrary_Click"/>
+                        </StackPanel>
+                        <StackPanel x:Name="AdvancedActions" Grid.Row="1" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
                             <Button x:Name="CompileButton" Content="Compile Stockfish" Style="{StaticResource AccentButtonStyle}" Click="Start_Click"/>
                             <Button x:Name="PreviewButton" Content="Preview build" Click="Preview_Click" ToolTipService.ToolTip="Validate the selected settings and show the build steps without downloading source or starting compilation."/>
+                            <Button x:Name="SaveOptionsButton" Content="Save settings" Click="SaveOptions_Click" ToolTipService.ToolTip="Save tool paths, output folder and Lc0 backend or network for the release library."/>
                         </StackPanel>
                     </Grid>
 
@@ -191,6 +221,10 @@
                 <!-- Settings (standard section 11, as a navigation page) -->
                 <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Padding="24" Spacing="32" MaxWidth="{StaticResource JupiterContentMaxWidth}" HorizontalAlignment="Left">
+                        <StackPanel Spacing="12">
+                            <TextBlock Style="{StaticResource JupiterSectionHeadingTextStyle}" Text="Release library"/>
+                            <CheckBox x:Name="CheckOnStartup" Content="Check for new releases when the app opens" IsChecked="True" Click="CheckOnStartup_Click"/>
+                        </StackPanel>
                         <StackPanel Spacing="12">
                             <TextBlock Style="{StaticResource JupiterSectionHeadingTextStyle}" Text="Appearance"/>
                             <jupiter:AccentColorSetting x:Name="AccentSetting"/>

@@ -55,9 +55,9 @@ public sealed class CompilerCore : IDisposable
         if (Native.cec_abi_version() != 1) throw new InvalidOperationException("Native core version mismatch.");
         if (Native.cec_create(out _handle) != 0) throw new InvalidOperationException("Could not initialize the build core.");
     }
-    public unsafe Response Call(Request.Types.Operation operation, BuildOptions? options = null, GitHubQuery? github = null, ToolSetupOptions? toolSetup = null)
+    public unsafe Response Call(Request.Types.Operation operation, BuildOptions? options = null, GitHubQuery? github = null, ToolSetupOptions? toolSetup = null, LibraryQuery? library = null)
     {
-        var request = new Request { RequestId = ++_requestId, Operation = operation, Options = options, Github = github, ToolSetup = toolSetup };
+        var request = new Request { RequestId = ++_requestId, Operation = operation, Options = options, Github = github, ToolSetup = toolSetup, Library = library };
         var bytes = request.ToByteArray();
         fixed (byte* pointer = bytes)
         {

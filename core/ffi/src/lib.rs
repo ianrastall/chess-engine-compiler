@@ -30,6 +30,7 @@ impl From<messages::BuildOptions> for BuildOptions {
             weights_path: o.weights_path,
             auto_architecture: o.auto_architecture,
             zig_path: o.zig_path,
+            release_id: o.release_id,
         }
     }
 }
@@ -51,6 +52,7 @@ impl From<BuildOptions> for messages::BuildOptions {
             weights_path: o.weights_path,
             auto_architecture: o.auto_architecture,
             zig_path: o.zig_path,
+            release_id: o.release_id,
         }
     }
 }
@@ -63,6 +65,20 @@ impl From<compiler_core::Snapshot> for messages::Snapshot {
             output: s.output,
             log_path: s.log_path,
             log_tail: s.log_tail,
+            library: s.library.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<compiler_core::library::Row> for messages::LibraryRow {
+    fn from(row: compiler_core::library::Row) -> Self {
+        Self {
+            engine: row.engine,
+            tag: row.tag,
+            state: row.state,
+            message: row.message,
+            output: row.output,
+            log_path: row.log_path,
         }
     }
 }
@@ -199,6 +215,23 @@ pub unsafe extern "C" fn cec_call(
                 Ok(())
             }
             Ok(Status) => Ok(()),
+            Ok(LibraryPreview | LibraryStart) => match request.library {
+                Some(query) => {
+                    let query = compiler_core::library::Query {
+                        catalog_root: query.catalog_root,
+                        options: query.options.into_iter().map(Into::into).collect(),
+                        scope: query.scope as u32,
+                    };
+                    if operation == Ok(LibraryPreview) {
+                        compiler_core::library::preview(&query).map(|rows| {
+                            response.library = rows.into_iter().map(Into::into).collect()
+                        })
+                    } else {
+                        core.start_library(query)
+                    }
+                }
+                None => Err("Release library options are required.".into()),
+            },
             Ok(Defaults) => {
                 response.options = Some(
                     compiler_core::defaults(
@@ -333,6 +366,7 @@ mod tests {
                 options: None,
                 github: None,
                 tool_setup: None,
+                library: None,
             }
             .encode_to_vec();
             let mut result = ptr::null_mut();

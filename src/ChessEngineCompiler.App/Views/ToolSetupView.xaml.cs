@@ -35,19 +35,11 @@ public sealed partial class ToolSetupView : UserControl, IAsyncDisposable
         if (SetupActive || _reading) return;
         _verification = verification;
         _options = new ToolSetupOptions { MsysRoot = o.MsysRoot, PythonPath = o.PythonPath, DestinationRoot = destination };
-        EngineRequirements.Text = o.Engine switch
-        {
-            "lc0" => "Lc0 requires Git, Python with Meson/Ninja, and Microsoft C++ build tools. CUDA additionally needs the NVIDIA toolkit and a compatible driver.",
-            "reckless" => "Reckless requires Rust/Cargo, Microsoft C++ build tools, Git and curl.",
-            "avalanche" => "Avalanche requires Git and Zig 0.17.0. The private Zig installation can be used immediately without restarting.",
-            "plentychess" or "stormphrax" => "The selected engine requires MSYS2 UCRT64 Clang, LLD, make, Git and curl. PlentyChess PGO also needs the LLVM profiling tools and runtime.",
-            "patricia" => "Patricia requires MSYS2 UCRT64 Clang, LLD, make and Git.",
-            "koivisto" or "seer" => "The selected engine requires MSYS2 UCRT64 GCC, make, Git and curl.",
-            "viridithas" => "Viridithas requires stable MSVC Rust, Microsoft C++ build tools, Git and curl. For PGO, explicitly run rustup component add llvm-tools --toolchain stable-x86_64-pc-windows-msvc.",
-            _ => "The selected engine requires MSYS2 with UCRT64 GCC, make, Git and download tools.",
-        };
-        SelectedPaths.Text = $"MSYS2 root: {(o.MsysRoot.Length > 0 ? o.MsysRoot : "select it in the Compile form")}\nPython: {(o.PythonPath.Length > 0 ? o.PythonPath : "detected on PATH")}";
-        var preferred = o.Engine switch { "avalanche" => "zig", "reckless" or "viridithas" => "rust", "lc0" => "meson", "plentychess" or "stormphrax" or "patricia" => "clang", _ => "gcc" };
+        EngineRequirements.Text = o.Engine == "lc0"
+            ? "Lc0 requires Git, Python with Meson/Ninja, and Microsoft C++ build tools. CUDA additionally needs the NVIDIA toolkit and a compatible driver."
+            : "Stockfish requires MSYS2 with UCRT64 GCC, make, Git and download tools.";
+        SelectedPaths.Text = $"MSYS2 root: {(o.MsysRoot.Length > 0 ? o.MsysRoot : "select it in Advanced build")}\nPython: {(o.PythonPath.Length > 0 ? o.PythonPath : "detected on PATH")}";
+        var preferred = o.Engine == "lc0" ? "meson" : "gcc";
         _ = RefreshCatalogAsync(preferred);
     }
 
@@ -65,8 +57,10 @@ public sealed partial class ToolSetupView : UserControl, IAsyncDisposable
             var options = _options.Clone();
             var result = await Task.Run(() => _core.Call(Request.Types.Operation.ToolCatalog, toolSetup: options));
             if (_disposed) return;
-            ToolChoice.ItemsSource = result.Tools.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToArray();
-            ToolChoice.SelectedItem = result.Tools.FirstOrDefault(t => t.Id == selected);
+            var tools = result.Tools.Where(t => t.Id is "gcc" or "git" or "msys2" or "python" or "meson" or "msvc" or "cuda")
+                .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase).ToArray();
+            ToolChoice.ItemsSource = tools;
+            ToolChoice.SelectedItem = tools.FirstOrDefault(t => t.Id == selected);
             if (ToolChoice.SelectedIndex < 0) ToolChoice.SelectedIndex = 0;
             ShowSelection();
             if (_lastState == "Ready") SetupStatus.Text = "Tool check completed. Select a tool to review setup.";
@@ -161,21 +155,18 @@ public sealed partial class ToolSetupView : UserControl, IAsyncDisposable
     internal async Task VerifyControlsAsync()
     {
         while (_reading) await Task.Delay(20);
-        if (!_verification || ToolChoice.Items.Count < 8) throw new InvalidOperationException("Build-tool catalog did not load.");
-        foreach (var id in new[] { "zig", "rust", "python", "gcc", "meson", "msvc", "cuda" })
+        if (!_verification || ToolChoice.Items.Count != 7) throw new InvalidOperationException("Build-tool catalog did not load.");
+        foreach (var tool in ToolChoice.Items.Cast<BuildTool>())
         {
-            ToolChoice.SelectedItem = ToolChoice.Items.Cast<BuildTool>().Single(t => t.Id == id);
-            if (InstallTool.IsEnabled || !Details.Text.Any() || !((BuildTool)ToolChoice.SelectedItem).Url.StartsWith("https://")) throw new InvalidOperationException("Tool setup review or safe verification state failed.");
+            ToolChoice.SelectedItem = tool;
+            if (InstallTool.IsEnabled || !Details.Text.Any() || !tool.Url.StartsWith("https://"))
+                throw new InvalidOperationException("Tool setup review or safe verification state failed.");
         }
-        ToolChoice.SelectedItem = ToolChoice.Items.Cast<BuildTool>().Single(t => t.Id == "zig");
-        _verification = false; SetBuildActive(false);
-        if (!InstallTool.IsEnabled) throw new InvalidOperationException("An available Zig installation was not enabled after review.");
-        SetBuildActive(true);
+        _verification = false; SetBuildActive(true);
         if (InstallTool.IsEnabled) throw new InvalidOperationException("Tool installation was enabled while compiling.");
         SetBuildActive(false); SetupActive = true; UpdateButtons();
         if (InstallTool.IsEnabled || !CancelSetup.IsEnabled) throw new InvalidOperationException("Running setup controls are wrong.");
         SetupActive = false; _verification = true; UpdateButtons();
-        if (!Details.Text.Contains("SHA-256")) throw new InvalidOperationException("Zig setup integrity details are missing.");
     }
 
     public async ValueTask DisposeAsync()

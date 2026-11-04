@@ -85,7 +85,9 @@ pub(super) fn plan(o: &BuildOptions) -> Result<Plan> {
     {
         return Err("Select the CUDA Toolkit root containing nvcc, cuBLAS and the CUDA runtime. CUDA 12.x requires Visual Studio 2022.".into());
     }
-    if !Path::new(&o.weights_path).is_absolute() || !Path::new(&o.weights_path).is_file() {
+    if !(o.release_id != 0 && o.weights_path.is_empty())
+        && (!Path::new(&o.weights_path).is_absolute() || !Path::new(&o.weights_path).is_file())
+    {
         return Err("Choose an Lc0 network weights file (.pb.gz or .pb). It is required for the standalone search test and is copied into the result.".into());
     }
     if git_executable(Path::new("")).is_none() {
@@ -96,7 +98,10 @@ pub(super) fn plan(o: &BuildOptions) -> Result<Plan> {
         "Load the selected MSVC x64 environment; check Python, Meson and Ninja without changing installed tools".into(),
         format!("Configure Meson release build with {} backend; download upstream dependency wraps", o.backend),
         format!("Compile using Ninja with {} parallel jobs", o.jobs),
-        "Copy lc0.exe, selected network, configuration and required CUDA runtime libraries into the result".into(),
+        if o.weights_path.is_empty() {
+            format!("Use the recipe network {} and check its size and SHA-256", recipes::LC0.network.name)
+        } else { "Use the selected local weights file and record its SHA-256".into() },
+        "Copy lc0.exe, network, configuration and required CUDA runtime libraries into the result".into(),
         "Verify UCI and a real neural-network search from the result with a clean runtime PATH".into(),
         "Save source/dependency archives, licenses, network SHA-256, versions, commit, manifest and full log".into(),
     ] })
@@ -200,6 +205,8 @@ pub(super) fn build(
     shared: &Arc<Mutex<Shared>>,
     cancel: &AtomicBool,
 ) -> Result<String> {
+    let recipe = &*recipes::LC0;
+    let repository = format!("https://github.com/{}", recipe.release.repository);
     let source = job.join("source");
     fs::create_dir(&source).map_err(|e| e.to_string())?;
     let git = git_executable(Path::new("")).ok_or("Git was not found")?;
@@ -218,14 +225,10 @@ pub(super) fn build(
     };
     phase(shared, "Fetch Lc0 source and pinned submodule");
     git_run(&["init", "--quiet"])?;
-    git_run(&[
-        "remote",
-        "add",
-        "origin",
-        "https://github.com/LeelaChessZero/lc0.git",
-    ])?;
-    git_run(&["fetch", "--depth=1", "origin", &o.source_ref])?;
+    git_run(&["remote", "add", "origin", &format!("{repository}.git")])?;
+    git_run(&["fetch", "--depth=1", "origin", &fetch_reference(o)])?;
     git_run(&["checkout", "--detach", "FETCH_HEAD"])?;
+    let flags = recipe.flags(&source, &o.backend, o.release_id != 0)?;
     git_run(&["submodule", "update", "--init", "--recursive", "--depth=1"])?;
     let commit = git_run(&["rev-parse", "HEAD"])?;
     let submodules = git_run(&["submodule", "status", "--recursive"])?;
@@ -246,6 +249,11 @@ pub(super) fn build(
         Command::new("ninja.exe").arg("--version"),
         Duration::from_secs(30),
     )?;
+    let weights = if o.weights_path.is_empty() {
+        default_network(job, shared, cancel)?
+    } else {
+        PathBuf::from(&o.weights_path)
+    };
     phase(shared, "Configure Lc0 release build");
     let build_dir = source.join("build");
     let mut setup = Command::new(&o.python_path);
@@ -258,21 +266,15 @@ pub(super) fn build(
             "--buildtype=release",
             "-Ddefault_library=static",
             "-Db_vscrt=mt",
-            "-Dgtest=false",
-            "-Dopenblas=false",
-            "-Dmkl=false",
-            "-Ddnnl=false",
-            "-Daccelerate=false",
-            "-Dispc=false",
-            "-Donnx=false",
-            "-Dcudnn=false",
-            "-Dopencl=false",
-            "-Ddx=false",
-            "-Dmetal=disabled",
-            "-Dblas=true",
         ])
-        .arg(format!("-Dplain_cuda={}", o.backend == "cuda-auto"))
-        .arg(format!("-Ddefault_backend={}", o.backend));
+        .args(&flags);
+    // Upstream's native_arch option uses -march=native only for non-MSVC.
+    let cpu_target = if o.release_id != 0 && !hardware::detect().plentychess_choices.is_empty() {
+        setup.arg("-Dcpp_args=/arch:AVX2");
+        "avx2"
+    } else {
+        "msvc-default"
+    };
     if o.backend == "cuda-auto" {
         setup
             .arg(format!(
@@ -298,12 +300,15 @@ pub(super) fn build(
     let output = result.join("lc0.exe");
     fs::copy(build_dir.join("lc0.exe"), &output).map_err(|e| e.to_string())?;
     phase(shared, "Save network and runtime libraries");
-    let weights_name = if o.weights_path.to_ascii_lowercase().ends_with(".gz") {
+    let weights_name = if weights
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("gz"))
+    {
         "weights.pb.gz"
     } else {
         "weights.pb"
     };
-    fs::copy(&o.weights_path, result.join(weights_name)).map_err(|e| e.to_string())?;
+    fs::copy(&weights, result.join(weights_name)).map_err(|e| e.to_string())?;
     let mut file = File::open(result.join(weights_name)).map_err(|e| e.to_string())?;
     let mut hasher = Sha256::new();
     std::io::copy(&mut file, &mut hasher).map_err(|e| e.to_string())?;
@@ -414,13 +419,68 @@ pub(super) fn build(
         result.join("meson-compilers.json"),
     )
     .map_err(|e| e.to_string())?;
-    let manifest = serde_json::json!({"schemaVersion": 2, "engine": "lc0", "sourceUrl": "https://github.com/LeelaChessZero/lc0", "commit": commit.trim(), "submodules": submodules.trim(), "options": o, "python": python_version.trim(), "meson": meson_version.trim(), "ninja": ninja_version.trim(), "weightsFile": weights_name, "weightsSha256": weights_hash, "runtimeFiles": runtime_files, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar", "dependencyArchive": "dependencies.tar"});
+    let manifest = serde_json::json!({"schemaVersion": 3, "engine": "lc0", "sourceUrl": repository, "commit": commit.trim(), "submodules": submodules.trim(), "options": o, "recipe": recipe.release.id, "actualArchitecture": cpu_target, "mesonFlags": flags, "python": python_version.trim(), "meson": meson_version.trim(), "ninja": ninja_version.trim(), "weightsFile": weights_name, "weightsSha256": weights_hash, "weightsUrl": o.weights_path.is_empty().then_some(&recipe.network.url), "runtimeFiles": runtime_files, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar", "dependencyArchive": "dependencies.tar"});
     fs::write(
         result.join("build.json"),
         serde_json::to_vec_pretty(&manifest).unwrap(),
     )
     .map_err(|e| e.to_string())?;
     Ok(output.to_string_lossy().into())
+}
+
+fn default_network(
+    job: &Path,
+    shared: &Arc<Mutex<Shared>>,
+    cancel: &AtomicBool,
+) -> Result<PathBuf> {
+    let network = &recipes::LC0.network;
+    let matches = |path: &Path| {
+        path.metadata()
+            .is_ok_and(|meta| meta.len() == network.bytes)
+            && recipes::sha256(path).is_ok_and(|hash| hash == network.sha256)
+    };
+    phase(shared, "Verify the Lc0 recipe network");
+    let weights = job.join(&network.name);
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        let existing = PathBuf::from(local)
+            .join("Jupiter/ChessEngineCompiler/networks")
+            .join(&network.name);
+        if existing.is_file() {
+            fs::copy(existing, &weights).map_err(|e| e.to_string())?;
+            if matches(&weights) {
+                return Ok(weights);
+            }
+        }
+    }
+    let curl =
+        find_tool("curl.exe").ok_or("Install curl or select a local Lc0 network in Advanced.")?;
+    phase(shared, "Download the Lc0 recipe network");
+    run(
+        Command::new(curl)
+            .args([
+                "--fail",
+                "--location",
+                "--proto",
+                "=https",
+                "--proto-redir",
+                "=https",
+                "--retry",
+                "2",
+                "--max-filesize",
+                &network.bytes.to_string(),
+                "--output",
+            ])
+            .arg(&weights)
+            .arg(&network.url),
+        shared,
+        cancel,
+        Duration::from_secs(600),
+        None,
+    )?;
+    if !matches(&weights) {
+        return Err("The Lc0 recipe network did not match its expected size and SHA-256.".into());
+    }
+    Ok(weights)
 }
 
 fn run_with_environment(

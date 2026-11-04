@@ -19,6 +19,7 @@ public sealed partial class ShellPreferences
     public int WindowWidth { get; set; }
     public int WindowHeight { get; set; }
     public string GitHubAuthMode { get; set; } = "anonymous";
+    public bool CheckReleasesOnStartup { get; set; } = true;
 
     [JsonIgnore]
     public string Path { get; private set; } = "";

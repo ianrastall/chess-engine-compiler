@@ -1,6 +1,6 @@
 # Chess Engine Compiler handoff
 
-Version 0.8.0 lives in `D:/jupiter/chess-engine-compiler`. Release tags identify the exact source commit. About shows the installed build identity. [GitHub repository](https://github.com/ianrastall/chess-engine-compiler)
+Version 1.0.0 lives in `D:/jupiter/chess-engine-compiler`. Release tags identify the exact source commit. About shows the installed build identity. [GitHub repository](https://github.com/ianrastall/chess-engine-compiler)
 
 ## Build and verify
 

@@ -36,6 +36,14 @@ enum Action {
     Plan { config: std::path::PathBuf },
     /// Compile and verify an engine from a JSON build configuration.
     Build { config: std::path::PathBuf },
+    /// Check, preview or build the Stockfish and Lc0 release library.
+    Library {
+        #[arg(value_parser = ["check", "plan", "build"])]
+        action: String,
+        config: std::path::PathBuf,
+        #[arg(long, default_value="anonymous", value_parser=["anonymous","cli"])]
+        auth: String,
+    },
     /// Print this computer's compatible CPU targets and recommendation.
     Hardware,
     /// Inspect build tools or explicitly install one; tool IDs come from tools list.
@@ -75,6 +83,56 @@ fn main() {
 }
 fn execute() -> Result<(), Box<dyn std::error::Error>> {
     match Args::parse().command {
+        Action::Library {
+            action,
+            config,
+            auth,
+        } => {
+            let query: compiler_core::library::Query =
+                serde_json::from_str(&std::fs::read_to_string(config)?)?;
+            let core = Compiler::default();
+            if action == "check" {
+                for options in &query.options {
+                    core.github
+                        .lock()
+                        .unwrap()
+                        .start(compiler_core::github::Query {
+                            action: 7,
+                            engine: options.engine.clone(),
+                            auth_mode: auth.clone(),
+                            output_folder: query.catalog_root.clone(),
+                            ..Default::default()
+                        })?;
+                    loop {
+                        let status = core.github.lock().unwrap().snapshot();
+                        if status.state == "Completed" {
+                            break;
+                        }
+                        if status.state != "Running" {
+                            return Err(status.message.into());
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(200));
+                    }
+                }
+            } else if action == "build" {
+                core.start_library(query)?;
+                loop {
+                    let status = core.snapshot();
+                    if !matches!(status.state.as_str(), "Running" | "Cancelling") {
+                        println!("{}", serde_json::to_string_pretty(&status)?);
+                        if status.state != "Completed" {
+                            return Err(status.message.into());
+                        }
+                        return Ok(());
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(250));
+                }
+            }
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&compiler_core::library::preview(&query)?)?
+            );
+        }
         Action::Tools {
             action,
             tool_id,

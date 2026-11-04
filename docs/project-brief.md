@@ -77,3 +77,7 @@ The first batch from Ian's expansion list covers PlentyChess, Stormphrax and Vir
 ## Version 0.8
 
 Ian prioritized Patricia, Koivisto and Seer for the next batch. The adapters build pinned upstream releases, embed their networks and require standalone UCI plus a matching source benchmark. See [the build workflows](patricia-koivisto-seer.md).
+
+## Version 1.0
+
+Ian selected Stockfish and Lc0 as the two engines for a release-driven redesign. The main workspace discovers stable releases on startup and prepares a cumulative queue, starting with two releases per engine. Build recipes describe supported upstream source families and validate their capabilities after checkout. Manual builds, build scripts, logs and tool setup use the same Rust core. Earlier engine adapters remain available for existing CLI configurations. See [Release library and build recipes](release-library.md).

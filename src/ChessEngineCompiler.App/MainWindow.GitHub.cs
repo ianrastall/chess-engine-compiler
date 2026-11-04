@@ -18,11 +18,6 @@ public sealed partial class MainWindow
     {
         var generation = ++_sourceGeneration;
         var engine = _engine;
-        if (HasPinnedSource)
-        {
-            _sourceSession.Cancel();
-            return;
-        }
         try
         {
             _sourceSession.Cancel();
@@ -55,7 +50,7 @@ public sealed partial class MainWindow
         if (_loadingSources || OfficialVersions is null || DevelopmentVersions is null || SourceRef is null) return;
         OfficialVersions.IsEnabled = SourceChannel.SelectedIndex == 0;
         DevelopmentVersions.IsEnabled = SourceChannel.SelectedIndex == 1;
-        SourceRef.IsReadOnly = HasPinnedSource || SourceChannel.SelectedIndex != 2;
+        SourceRef.IsReadOnly = SourceChannel.SelectedIndex != 2;
         if (SourceChannel.SelectedIndex == 0)
         {
             if (OfficialVersions.SelectedItem is null && OfficialVersions.Items.Count > 0) OfficialVersions.SelectedIndex = 0;

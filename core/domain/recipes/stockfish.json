@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "stockfish-mingw-nnue-v1",
+  "repository": "official-stockfish/Stockfish",
+  "tagPrefix": "sf_",
+  "minimumVersion": [17, 1, 0],
+  "sourceDirectory": "src",
+  "makefile": "Makefile",
+  "evaluationHeader": "evaluate.h",
+  "compiler": "mingw",
+  "targets": {
+    "network": "net",
+    "regular": "build",
+    "optimized": "profile-build",
+    "strip": "strip"
+  }
+}

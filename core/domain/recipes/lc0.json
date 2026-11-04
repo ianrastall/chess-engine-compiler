@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "id": "lc0-msvc-meson-v1",
+  "repository": "LeelaChessZero/lc0",
+  "tagPrefix": "v",
+  "minimumVersion": [0, 32, 0],
+  "optionFiles": ["meson.options", "meson_options.txt"],
+  "requiredOptions": ["blas", "plain_cuda", "default_backend"],
+  "optionalFlags": {
+    "gtest": "false",
+    "openblas": "false",
+    "mkl": "false",
+    "dnnl": "false",
+    "accelerate": "false",
+    "ispc": "false",
+    "onnx": "false",
+    "cudnn": "false",
+    "opencl": "false",
+    "dx": "false",
+    "metal": "disabled",
+    "native_arch": "true",
+    "native_cuda": "true"
+  },
+  "network": {
+    "name": "t1-256x10-distilled-swa-2432500.pb.gz",
+    "url": "https://storage.lczero.org/files/networks-contrib/t1-256x10-distilled-swa-2432500.pb.gz",
+    "sha256": "bc27a6cae8ad36f2b9a80a6ad9dabb0d6fda25b1e7f481a79bc359e14f563406",
+    "bytes": 37118673
+  }
+}

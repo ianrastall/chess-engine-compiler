@@ -18,14 +18,16 @@ message BuildOptions {
   string weights_path = 13;
   bool auto_architecture = 14;
   string zig_path = 15;
+  uint64 release_id = 16;
 }
 message Request {
   uint64 request_id = 1;
-  enum Operation { STATUS = 0; DEFAULTS = 1; PLAN = 2; START = 3; CANCEL = 4; HARDWARE = 5; GITHUB_START = 6; GITHUB_STATUS = 7; GITHUB_CANCEL = 8; TOOL_CATALOG = 9; TOOL_SETUP_START = 10; }
+  enum Operation { STATUS = 0; DEFAULTS = 1; PLAN = 2; START = 3; CANCEL = 4; HARDWARE = 5; GITHUB_START = 6; GITHUB_STATUS = 7; GITHUB_CANCEL = 8; TOOL_CATALOG = 9; TOOL_SETUP_START = 10; LIBRARY_PREVIEW = 11; LIBRARY_START = 12; }
   Operation operation = 2;
   BuildOptions options = 3;
   GitHubQuery github = 4;
   ToolSetupOptions tool_setup = 5;
+  LibraryQuery library = 6;
 }
 message Hardware {
   string cpu_name = 1;
@@ -48,7 +50,7 @@ message Hardware {
   repeated string stormphrax_choices = 18;
 }
 message GitHubQuery {
-  enum Action { CATALOG = 0; RELEASE_ASSETS = 1; ARTIFACTS = 2; DOWNLOAD_RELEASE = 3; DOWNLOAD_ARTIFACT = 4; ACCOUNT = 5; SIGN_IN = 6; }
+  enum Action { CATALOG = 0; RELEASE_ASSETS = 1; ARTIFACTS = 2; DOWNLOAD_RELEASE = 3; DOWNLOAD_ARTIFACT = 4; ACCOUNT = 5; SIGN_IN = 6; STABLE_RELEASES = 7; }
   Action action = 1;
   string engine = 2;
   string auth_mode = 3;
@@ -97,6 +99,7 @@ message Snapshot {
   string output = 4;
   string log_path = 5;
   string log_tail = 6;
+  repeated LibraryRow library = 7;
 }
 message Response {
   uint64 request_id = 1;
@@ -107,6 +110,22 @@ message Response {
   Hardware hardware = 6;
   GitHubSnapshot github = 7;
   repeated BuildTool tools = 8;
+  repeated LibraryRow library = 9;
+}
+
+message LibraryQuery {
+  enum Scope { NEW_RELEASES = 0; LATEST_RELEASE = 1; RELEASE_HISTORY = 2; }
+  string catalog_root = 1;
+  repeated BuildOptions options = 2;
+  Scope scope = 3;
+}
+message LibraryRow {
+  string engine = 1;
+  string tag = 2;
+  string state = 3;
+  string message = 4;
+  string output = 5;
+  string log_path = 6;
 }
 
 message ToolSetupOptions {
