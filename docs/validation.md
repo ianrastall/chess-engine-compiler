@@ -209,3 +209,26 @@ The installer upgraded the existing 0.7.0 installation to `0.8.0+24028b20c5ad6f6
 The release tag resolves to the installed build's source commit. The installer, portable ZIP and checksum file match the published SHA-256 digests. [Release v0.8.0](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v0.8.0)
 
 Windows CI passed on its second attempt, including fresh install, upgrade, uninstall with data preservation, reinstall and Start Menu registration. The first attempt wrote a passing WinUI form report, then exited with the native access violation also seen in the first 0.7.0 run. Local package and installed form checks exited cleanly. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/41771870206)
+
+## Version 1.0.0 — Stockfish and Lc0 release library
+
+On 4 November 2026, the live GitHub catalog proposed Stockfish 19, Lc0 v0.32.1, Stockfish 18 and Lc0 v0.32.0 in that order. The first queue verified both Stockfish releases even though an intervening Lc0 job failed. Stockfish 17.1 was tested independently through the managed recipe. All three used MSYS2 UCRT64 GCC 16.1.0 with BMI2, PGO and stripping on the Intel Core i7-10700. Their source-declared networks passed hash-prefix checks, and the executables passed a standalone UCI handshake and a positive-node search with only System32 on PATH.
+
+The Lc0 trials exposed Python TLS trust failures while downloading Meson dependencies and two manifestations of MSVC path limits in a deeply nested job folder. The adapter now verifies the selected source's Abseil, Eigen and zlib wraps before Meson, and builds with both source and generated files in a short workspace on the same drive. It retains the checkout, Meson diagnostic and full build log with the job. A separate fresh download of the default Lc0 T1 weights matched the recipe's 37,118,673-byte size and SHA-256 digest.
+
+Final Lc0 source builds used MSVC 2022 and the AVX2 C++ target. Both releases passed on CPU Eigen and on NVIDIA CUDA 12.9 with the local GTX 1660 Ti.
+
+| Lc0 release | Resolved source commit | Standalone nodes, CUDA / Eigen |
+| --- | --- | ---: |
+| v0.32.1 | `fd71a2d921b689c5f479d3227c3806c8e272d9c5` | 32 / 33 |
+| v0.32.0 | `b38ed00a25baed9554d2675ec376bd50dad18195` | 32 / 33 |
+
+Each final job retained its checkout, recorded all five source-pinned dependency archives, verified the recipe network and passed UCI plus a standalone neural search. The installed CLI recognized the two Stockfish and two CUDA Lc0 outputs as already verified. The validation covers the stated revisions, tools and local hardware. Other source families, Lc0 backends, CUDA configurations and network formats require their own verification.
+
+Live metadata, manifests, dependency and source archives, and per-job logs are in the ignored `target/release library validation 20261104-020200` directory. The package's WinUI verification uses isolated fixtures for the default four-release ordering, scopes, engine filters and older releases that need recipe coverage. The Rust library test covers later arrivals, cached catalogs, completed-result reuse and persisted source-layout failures.
+
+The full local build passed formatting, strict Clippy, 21 domain tests, the ABI test, managed/native integration and the real WinUI log and release-library tests. The existing Jupiter.UI XML documentation warning remains. The 1.0.0 installer upgraded 0.8.0 to build `1.0.0+c1a845d918b695022f9c1bb8a8bb5b71479b6946`. Nine existing settings and network files retained their SHA-256 hashes. The registered Start Menu shortcut launched the installed executable, which fetched both startup catalogs. The installed CLI accepted the library plan, and the installed WinUI form check passed in isolated state.
+
+Windows CI passed for the release commit, including installation, upgrade, uninstall with data preservation, reinstallation and Start Menu registration. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/41798225510)
+
+The v1.0.0 release tag resolves to the installed build's commit. The published installer, portable ZIP and checksum file match the local SHA-256 digests. [Release v1.0.0](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v1.0.0)

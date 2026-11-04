@@ -1,6 +1,6 @@
 # Lc0 builds
 
-Select **Lc0** in the Engine field. Its source revision, tool paths, backend and network are independent of Stockfish's selections. The initial revision is `v0.32.1`; an official branch or commit can also be selected. The source adapter uses Meson/Ninja and MSVC, with upstream's pinned lczero-common submodule. It does not run upstream's interactive `build.cmd` or delete existing checkouts.
+Use **Release library** for stable Lc0 releases, or select **Lc0** in **Advanced build** for a specific tag, branch or commit. Its tool paths, backend and network are independent of Stockfish's selections. **Save settings** applies those choices to the library. The source adapter uses Meson/Ninja and MSVC with upstream's pinned lczero-common submodule. [Release library and recipes](release-library.md)
 
 ## Tools
 
@@ -20,7 +20,7 @@ Paste that environment's `Scripts\python.exe` path into **Python executable**. T
 - **NVIDIA GPU (CUDA):** requires the CUDA Toolkit (including nvcc/cuBLAS/runtime), a compatible NVIDIA driver and GPU. cuDNN is not required. CUDA 12.9 with VS 2022 is the tested toolchain. CUDA's native target builds for the GPU in this machine. `cuda-auto` chooses FP16 or FP32 according to GPU capability. Required cuBLAS and CUDA runtime DLLs and the toolkit license are copied into the result. A compatible GPU and driver are still needed on another computer.
 - **CPU (Eigen):** uses upstream's Eigen backend without a separate BLAS library. It supports CPU evaluation and is slower than GPU evaluation for large networks. It uses the same MSVC/Python/Meson tools, with no CUDA Toolkit requirement.
 
-Choose a `.pb.gz` or `.pb` network from [Lc0's network catalogue](https://lczero.org/play/networks/bestnets/). Compressed networks are supported directly. The network remains a separate file and is copied into the result with its SHA-256 recorded. Large networks require more memory. A successful UCI handshake alone does not prove a network can run: the compiler also performs a short standalone search using the selected backend and copied network. An incompatible network, missing runtime or unavailable GPU fails the build with its full diagnostic log retained.
+The release library uses its verified T1 network when the saved weights path is blank. To choose another, use a `.pb.gz` or `.pb` file from [Lc0's network catalogue](https://lczero.org/play/networks/bestnets/) in Advanced build. The network remains a separate file and is copied into the result with its SHA-256 recorded. The compiler verifies UCI and a standalone search using the selected backend and copied network. An incompatible network, missing runtime or unavailable GPU fails the build and retains the diagnostic log.
 
 DirectX 12, ONNX/DirectML, cuDNN, OpenCL and external BLAS variants are not exposed. Upstream's DirectX 12 backend cannot load the current transformer networks. Additional backends need their own dependency handling and hardware verification before appearing as supported choices.
 
