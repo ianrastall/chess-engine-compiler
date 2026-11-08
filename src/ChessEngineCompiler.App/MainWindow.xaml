@@ -96,6 +96,7 @@
                             </ListView>
                             <StackPanel Grid.Row="2" Spacing="8">
                                 <TextBlock x:Name="LibraryDetail" TextWrapping="Wrap" MaxLines="4" TextTrimming="CharacterEllipsis" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                <Button x:Name="LibraryWeightsButton" Content="Manage Lc0 weights" Click="ManageWeights_Click" Visibility="Collapsed"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button x:Name="LibraryResultButton" Content="Open result" Click="LibraryResult_Click" IsEnabled="False"/>
                                     <Button x:Name="LibraryLogButton" Content="Open job log" Click="LibraryLog_Click" IsEnabled="False"/>
@@ -161,13 +162,16 @@
                                     <TextBox x:Name="PythonPath" Header="Python executable (with Meson and Ninja)" ToolTipService.ToolTip="Full path to python.exe. Install Meson and Ninja into this Python environment with python -m pip install meson ninja. A virtual environment is supported. The compiler checks versions before building; it does not install tools."/>
                                     <TextBox x:Name="VisualStudio" Header="Visual Studio installation folder" ToolTipService.ToolTip="Installation root containing VC\Auxiliary\Build\vcvarsall.bat. Requires Desktop development with C++ and a Windows SDK. CUDA 12.x needs Visual Studio 2022; the compiler prefers that version when detecting tools."/>
                                     <TextBox x:Name="CudaRoot" Header="CUDA Toolkit root folder" ToolTipService.ToolTip="Toolkit folder containing bin\nvcc.exe and lib\x64\cublas.lib, for example C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9. cuDNN is not required. CUDA runtime DLLs are copied into each result; an NVIDIA driver is still needed."/>
-                                    <StackPanel Spacing="4">
+                                    <StackPanel x:Name="Lc0WeightsOptions" Spacing="4">
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                            <TextBox x:Name="WeightsPath" Header="Network weights file" ToolTipService.ToolTip="Select an Lc0 .pb.gz or .pb neural network. The file is kept separate from lc0.exe, copied into the result and recorded by SHA-256. A real search verifies that it works with the chosen backend. Large networks need more RAM or GPU memory."/>
+                                            <TextBox x:Name="WeightsPath" Header="Network weights file" PlaceholderText="Default for release library" ToolTipService.ToolTip="Select an Lc0 .pb.gz or .pb neural network. The file is kept separate from lc0.exe, copied into the result and recorded by SHA-256. A real search verifies that it works with the chosen backend. Large networks need more RAM or GPU memory."/>
                                             <Button Grid.Column="1" Content="Browse…" VerticalAlignment="Bottom" Click="BrowseWeights_Click"/>
                                         </Grid>
-                                        <HyperlinkButton Content="Download Lc0 networks" Click="Networks_Click" Padding="0"/>
+                                        <TextBlock Text="Keep .pb.gz or .pb files in the weights folder or browse to a file anywhere. Leave this field blank to use the default in the release library. Select Save settings to keep your choice." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                        <Button x:Name="DownloadWeightsButton" Content="Download and select default weights" Click="DownloadWeights_Click"/>
+                                        <HyperlinkButton Content="Open weights folder" Click="OpenWeightsFolder_Click" Padding="0"/>
+                                        <HyperlinkButton Content="Browse Lc0 network catalogue" Click="Networks_Click" Padding="0"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <controls:NumericTextBox x:Name="Jobs" Header="Parallel jobs (1–256)" Minimum="1" Maximum="256" Value="8" Width="{StaticResource JupiterShortFieldWidth}" HorizontalAlignment="Left"

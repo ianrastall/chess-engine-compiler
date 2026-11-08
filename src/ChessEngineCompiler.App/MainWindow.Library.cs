@@ -142,6 +142,7 @@ public sealed partial class MainWindow
     {
         var idle = !_active && !ToolSetupPane.SetupActive;
         LibraryEngine.IsEnabled = LibraryScope.IsEnabled = idle;
+        LibraryWeightsButton.IsEnabled = idle;
         BuildLibrary.IsEnabled = idle && _libraryRows.Any(row => row.State is "Ready" or "Failed" or "Cancelled");
         BuildLibrary.Content = LibraryScope.SelectedIndex switch
         {
@@ -169,6 +170,7 @@ public sealed partial class MainWindow
         if (LibraryDetail is null) return;
         var row = (LibraryResults.SelectedItem as ReleaseItem)?.Row;
         LibraryDetail.Text = row?.Message ?? "";
+        LibraryWeightsButton.Visibility = row?.Engine == "lc0" ? Visibility.Visible : Visibility.Collapsed;
         LibraryResultButton.IsEnabled = File.Exists(row?.Output);
         LibraryLogButton.IsEnabled = File.Exists(row?.LogPath);
     }

@@ -215,6 +215,9 @@ pub unsafe extern "C" fn cec_call(
                 Ok(())
             }
             Ok(Status) => Ok(()),
+            Ok(Lc0WeightsDownload) => {
+                core.start_lc0_weights_download(request.weights_folder.into())
+            }
             Ok(LibraryPreview | LibraryStart) => match request.library {
                 Some(query) => {
                     let query = compiler_core::library::Query {
@@ -363,10 +366,7 @@ mod tests {
             let request = messages::Request {
                 request_id: 42,
                 operation: 1,
-                options: None,
-                github: None,
-                tool_setup: None,
-                library: None,
+                ..Default::default()
             }
             .encode_to_vec();
             let mut result = ptr::null_mut();

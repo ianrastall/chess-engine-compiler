@@ -22,12 +22,13 @@ message BuildOptions {
 }
 message Request {
   uint64 request_id = 1;
-  enum Operation { STATUS = 0; DEFAULTS = 1; PLAN = 2; START = 3; CANCEL = 4; HARDWARE = 5; GITHUB_START = 6; GITHUB_STATUS = 7; GITHUB_CANCEL = 8; TOOL_CATALOG = 9; TOOL_SETUP_START = 10; LIBRARY_PREVIEW = 11; LIBRARY_START = 12; }
+  enum Operation { STATUS = 0; DEFAULTS = 1; PLAN = 2; START = 3; CANCEL = 4; HARDWARE = 5; GITHUB_START = 6; GITHUB_STATUS = 7; GITHUB_CANCEL = 8; TOOL_CATALOG = 9; TOOL_SETUP_START = 10; LIBRARY_PREVIEW = 11; LIBRARY_START = 12; LC0_WEIGHTS_DOWNLOAD = 13; }
   Operation operation = 2;
   BuildOptions options = 3;
   GitHubQuery github = 4;
   ToolSetupOptions tool_setup = 5;
   LibraryQuery library = 6;
+  string weights_folder = 7;
 }
 message Hardware {
   string cpu_name = 1;

@@ -36,6 +36,8 @@ enum Action {
     Plan { config: std::path::PathBuf },
     /// Compile and verify an engine from a JSON build configuration.
     Build { config: std::path::PathBuf },
+    /// Download or verify the default Lc0 weights in an absolute folder.
+    Lc0Weights { folder: std::path::PathBuf },
     /// Check, preview or build the Stockfish and Lc0 release library.
     Library {
         #[arg(value_parser = ["check", "plan", "build"])]
@@ -234,26 +236,38 @@ fn execute() -> Result<(), Box<dyn std::error::Error>> {
             let options = serde_json::from_slice(&std::fs::read(config)?)?;
             let core = Compiler::default();
             core.start(options)?;
-            let mut previous_phase = String::new();
-            loop {
-                let snapshot = core.snapshot();
-                if snapshot.phase != previous_phase {
-                    println!("{}", snapshot.phase);
-                    previous_phase = snapshot.phase.clone();
-                }
-                if !matches!(snapshot.state.as_str(), "Running" | "Cancelling") {
-                    println!(
-                        "{}\nLog: {}\nOutput: {}",
-                        snapshot.message, snapshot.log_path, snapshot.output
-                    );
-                    if snapshot.state != "Completed" {
-                        return Err(snapshot.message.into());
-                    }
-                    break;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(250));
-            }
+            wait_for_output(&core)?;
+        }
+        Action::Lc0Weights { folder } => {
+            let core = Compiler::default();
+            core.start_lc0_weights_download(folder)?;
+            wait_for_output(&core)?;
         }
     }
     Ok(())
+}
+
+fn wait_for_output(core: &Compiler) -> Result<(), Box<dyn std::error::Error>> {
+    let mut previous_phase = String::new();
+    loop {
+        let snapshot = core.snapshot();
+        if snapshot.phase != previous_phase {
+            println!("{}", snapshot.phase);
+            previous_phase = snapshot.phase.clone();
+        }
+        if !matches!(snapshot.state.as_str(), "Running" | "Cancelling") {
+            println!("{}", snapshot.message);
+            if !snapshot.log_path.is_empty() {
+                println!("Log: {}", snapshot.log_path);
+            }
+            if !snapshot.output.is_empty() {
+                println!("Output: {}", snapshot.output);
+            }
+            if snapshot.state != "Completed" {
+                return Err(snapshot.message.into());
+            }
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
 }

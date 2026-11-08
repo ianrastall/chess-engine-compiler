@@ -85,10 +85,16 @@ pub(super) fn plan(o: &BuildOptions) -> Result<Plan> {
     {
         return Err("Select the CUDA Toolkit root containing nvcc, cuBLAS and the CUDA runtime. CUDA 12.x requires Visual Studio 2022.".into());
     }
-    if !(o.release_id != 0 && o.weights_path.is_empty())
-        && (!Path::new(&o.weights_path).is_absolute() || !Path::new(&o.weights_path).is_file())
-    {
+    let weights = Path::new(&o.weights_path);
+    if o.weights_path.is_empty() && o.release_id == 0 {
         return Err("Choose an Lc0 network weights file (.pb.gz or .pb). It is required for the standalone search test and is copied into the result.".into());
+    }
+    if !o.weights_path.is_empty() && (!weights.is_absolute() || !weights.is_file()) {
+        return Err(if o.release_id != 0 {
+            "The selected Lc0 weights file was not found. Open Manage Lc0 weights to choose a file or use the default network."
+        } else {
+            "The selected Lc0 weights file was not found. Browse for the file or download the default network."
+        }.into());
     }
     if git_executable(Path::new("")).is_none() {
         return Err("Install Git for Windows and restart the app.".into());
@@ -516,11 +522,6 @@ fn default_network(
     cancel: &AtomicBool,
 ) -> Result<PathBuf> {
     let network = &recipes::LC0.network;
-    let matches = |path: &Path| {
-        path.metadata()
-            .is_ok_and(|meta| meta.len() == network.bytes)
-            && recipes::sha256(path).is_ok_and(|hash| hash == network.sha256)
-    };
     phase(shared, "Verify the Lc0 recipe network");
     let weights = job.join(&network.name);
     if let Some(local) = std::env::var_os("LOCALAPPDATA") {
@@ -529,17 +530,103 @@ fn default_network(
             .join(&network.name);
         if existing.is_file() {
             fs::copy(existing, &weights).map_err(|e| e.to_string())?;
-            if matches(&weights) {
+            if matches_default_network(&weights) {
                 return Ok(weights);
             }
         }
     }
     phase(shared, "Download the Lc0 recipe network");
-    curl_download(&network.url, &weights, network.bytes, shared, cancel)?;
-    if !matches(&weights) {
+    fetch_default_network(&weights, shared, cancel)?;
+    Ok(weights)
+}
+
+fn matches_default_network(path: &Path) -> bool {
+    let network = &recipes::LC0.network;
+    path.metadata()
+        .is_ok_and(|meta| meta.len() == network.bytes)
+        && recipes::sha256(path).is_ok_and(|hash| hash == network.sha256)
+}
+
+fn fetch_default_network(
+    path: &Path,
+    shared: &Arc<Mutex<Shared>>,
+    cancel: &AtomicBool,
+) -> Result<()> {
+    let network = &recipes::LC0.network;
+    curl_download(&network.url, path, network.bytes, shared, cancel)?;
+    if !matches_default_network(path) {
         return Err("The Lc0 recipe network did not match its expected size and SHA-256.".into());
     }
-    Ok(weights)
+    Ok(())
+}
+
+impl Compiler {
+    pub fn start_lc0_weights_download(&self, folder: PathBuf) -> Result<()> {
+        if !folder.is_absolute() {
+            return Err("Choose an absolute Lc0 weights folder.".into());
+        }
+        let _gate = self.gate.lock().unwrap();
+        self.prepare()?;
+        let shared = self.shared.clone();
+        let cancel = self.cancel.clone();
+        *self.worker.lock().unwrap() = Some(thread::spawn(move || {
+            let result = save_default_network(&folder, &shared, &cancel);
+            let mut state = shared.lock().unwrap();
+            let (status, message) = match result {
+                Ok(path) => {
+                    state.snapshot.output = path.to_string_lossy().into_owned();
+                    (
+                        "Completed",
+                        "Default Lc0 weights verified and ready to use.".into(),
+                    )
+                }
+                Err(_) if cancel.load(Ordering::SeqCst) => {
+                    ("Cancelled", "Weights download cancelled.".into())
+                }
+                Err(error) => ("Failed", error),
+            };
+            state.snapshot.state = status.into();
+            state.snapshot.message = message.clone();
+            state.line(&message);
+        }));
+        Ok(())
+    }
+}
+
+fn save_default_network(
+    folder: &Path,
+    shared: &Arc<Mutex<Shared>>,
+    cancel: &AtomicBool,
+) -> Result<PathBuf> {
+    fs::create_dir_all(folder)
+        .map_err(|e| format!("Could not open the Lc0 weights folder: {e}"))?;
+    let output = folder.join(&recipes::LC0.network.name);
+    phase(shared, "Verify default Lc0 weights");
+    if matches_default_network(&output) {
+        return Ok(output);
+    }
+    let conflict = "A file with the default network's name failed verification. Move it out of the weights folder and retry.";
+    if output.exists() {
+        return Err(conflict.into());
+    }
+    let temporary = tempfile::NamedTempFile::new_in(folder)
+        .map_err(|e| format!("Could not create a temporary weights file: {e}"))?
+        .into_temp_path();
+    phase(shared, "Download default Lc0 weights");
+    fetch_default_network(&temporary, shared, cancel)?;
+    if cancel.load(Ordering::SeqCst) {
+        return Err("Weights download cancelled.".into());
+    }
+    if let Err(error) = temporary.persist_noclobber(&output)
+        && !matches_default_network(&output)
+    {
+        return Err(if error.error.kind() == std::io::ErrorKind::AlreadyExists {
+            conflict.into()
+        } else {
+            format!("Could not save the verified Lc0 weights: {}", error.error)
+        });
+    }
+    Ok(output)
 }
 
 fn fetch_wraps(
@@ -672,6 +759,21 @@ mod tests {
         o.backend = "eigen".into();
         o.weights_path.clear();
         assert!(plan(&o).unwrap_err().contains("weights file"));
+        o.release_id = 1;
+        assert!(plan(&o).is_ok());
+        o.weights_path = dir.path().join("moved.pb.gz").to_string_lossy().into();
+        assert!(plan(&o).unwrap_err().contains("Manage Lc0 weights"));
+    }
+
+    #[test]
+    fn default_network_download_preserves_an_existing_unverified_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join(&recipes::LC0.network.name);
+        fs::write(&output, b"existing file").unwrap();
+        let core = Compiler::default();
+        let error = save_default_network(dir.path(), &core.shared, &core.cancel).unwrap_err();
+        assert!(error.contains("failed verification"));
+        assert_eq!(fs::read(output).unwrap(), b"existing file");
     }
 
     #[test]

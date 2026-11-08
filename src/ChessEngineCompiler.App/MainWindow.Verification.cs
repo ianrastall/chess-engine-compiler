@@ -80,6 +80,16 @@ public sealed partial class MainWindow
         Root.UpdateLayout(); await Task.Delay(150);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "lc0-tools.png"));
         SelectEngine("stockfish");
+        ShowArea("library");
+        LibraryResults.SelectedIndex = 0;
+        Require(LibraryWeightsButton.Visibility == Visibility.Collapsed, "Stockfish exposes the Lc0 weights action.");
+        LibraryResults.SelectedIndex = 1;
+        Require(LibraryWeightsButton.Visibility == Visibility.Visible && LibraryWeightsButton.IsEnabled, "Lc0 weights are inaccessible from the release row.");
+        ManageWeights_Click(LibraryWeightsButton, null!);
+        Require(_engine == "lc0" && OptionsScroll.Visibility == Visibility.Visible && DownloadWeightsButton.IsEnabled,
+            "The release row did not open the Lc0 weights controls.");
+        Require(Options().WeightsPath == lc0.WeightsPath, "Opening weights controls changed the custom weights selection.");
+        SelectEngine("stockfish");
         OptionsScroll.ChangeView(null, 0, null, true);
         Root.UpdateLayout(); await Task.Delay(150);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "stockfish.png"));

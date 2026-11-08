@@ -22,6 +22,7 @@ public sealed partial class MainWindow : Window
     private readonly LogPresenter _logPresenter;
     private string _engine = "stockfish";
     private bool _loadingOptions;
+    private bool _downloadingWeights;
     private readonly Dictionary<string, BuildOptions> _engineOptions = new();
     private readonly bool _verification;
     private readonly GitHubCredentials _githubCredentials;
@@ -29,6 +30,7 @@ public sealed partial class MainWindow : Window
     private Hardware _hardware = new();
     private readonly string DataFolder;
     private string ConfigPath => Path.Combine(DataFolder, "build-options.json");
+    private string WeightsFolder => Path.Combine(DataFolder, "networks");
     private static readonly string[] Engines = EngineCatalog.Items.Select(e => e.Id).ToArray();
     private static string EngineName(string engine) => EngineCatalog.Name(engine);
     private string OptionsPath(string engine) => engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, $"{engine}-options.json");
@@ -263,16 +265,29 @@ public sealed partial class MainWindow : Window
             ToolSetupPane.SetBuildActive(_active);
             if (ToolSetupPane.SetupActive) Model.Status = $"Running - {ToolSetupPane.CurrentPhase}";
             CancelButton.IsEnabled = CancelMenu.IsEnabled = s.State == "Running";
+            CancelButton.Content = CancelMenu.Text = _active && _downloadingWeights ? "Cancel download" : "Cancel build";
             Progress.IsIndeterminate = _active; Progress.Visibility = _active ? Visibility.Visible : Visibility.Collapsed;
             RefreshLibraryRun(s);
-            if (_active || _lastState is "Running" or "Cancelling") _logPresenter.Update(s.LogTail);
+            if (_active || _downloadingWeights || _lastState is "Running" or "Cancelling") _logPresenter.Update(s.LogTail);
             _output = s.Output; _logPath = s.LogPath;
             ResultButton.IsEnabled = File.Exists(_output); LogButton.IsEnabled = File.Exists(_logPath);
             PowerShellLogMenu.IsEnabled = File.Exists(_logPath);
-            if (_lastState != s.State && s.State is "Completed" or "Failed" or "Cancelled")
+            var weightsFinished = _downloadingWeights && !_active;
+            if (weightsFinished)
+            {
+                _downloadingWeights = false;
+                if (s.State == "Completed")
+                {
+                    WeightsPath.Text = s.Output;
+                    PreviewLibrary();
+                    UpdateLibraryControls();
+                }
+            }
+            if ((weightsFinished || _lastState != s.State) && s.State is "Completed" or "Failed" or "Cancelled")
             {
                 Notice.Severity = s.State == "Completed" ? InfoBarSeverity.Success : s.State == "Failed" ? InfoBarSeverity.Error : InfoBarSeverity.Informational;
                 Notice.Title = s.State; Notice.Message = s.Message; Notice.IsOpen = true;
+                if (weightsFinished && s.State == "Completed") Notice.Message += " Select Save settings to keep this selection.";
             }
             _lastState = s.State;
         }
@@ -290,9 +305,34 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            var picker = new FileOpenPicker(); picker.FileTypeFilter.Add(".gz"); picker.FileTypeFilter.Add(".pb");
+            var picker = new FileOpenPicker { SettingsIdentifier = "Lc0Weights" }; picker.FileTypeFilter.Add(".gz"); picker.FileTypeFilter.Add(".pb");
             WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
             if (await picker.PickSingleFileAsync() is { } file) WeightsPath.Text = file.Path;
+        }
+        catch (Exception error) { ShowProblem(error.Message); }
+    }
+    private void ManageWeights_Click(object sender, RoutedEventArgs e)
+    {
+        if (_active || ToolSetupPane.SetupActive) return;
+        Engine.SelectedIndex = EngineCatalog.Index("lc0");
+        ShowArea("compile");
+        DispatcherQueue.TryEnqueue(() => Lc0WeightsOptions.StartBringIntoView());
+    }
+    private void OpenWeightsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try { OpenPath(Directory.CreateDirectory(WeightsFolder).FullName); }
+        catch (Exception error) { ShowProblem(error.Message); }
+    }
+    private void DownloadWeights_Click(object sender, RoutedEventArgs e)
+    {
+        if (_active || ToolSetupPane.SetupActive) return;
+        try
+        {
+            _core.Call(Request.Types.Operation.Lc0WeightsDownload, weightsFolder: WeightsFolder);
+            _downloadingWeights = true;
+            _logPresenter.BeginBuild();
+            Notice.IsOpen = false;
+            Refresh();
         }
         catch (Exception error) { ShowProblem(error.Message); }
     }

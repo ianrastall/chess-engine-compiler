@@ -6,6 +6,8 @@ Choose both engines or one engine. **New releases** initially includes the two m
 
 Select **Build new releases** to start the queue. Jobs run in order with a separate source folder and log for each release. Failed and cancelled jobs preserve their files and status, and subsequent ready jobs continue after a failure. A later attempt skips managed releases whose verified manifest and executable are still present. Select a row to open its result or job log. Build-tool setup requires a separate action in Settings. In **Advanced build**, **Save settings** saves the tool paths, output folder and Lc0 backend or weights file used by the library. The advanced form still accepts custom refs.
 
+For an Lc0 row, **Manage Lc0 weights** opens the controls for selecting a file, downloading the verified default, browsing the official catalogue, and opening the persistent weights folder. See [Lc0 builds](lc0.md#backend-and-network).
+
 ## Build recipes
 
 The [Stockfish recipe](../core/domain/recipes/stockfish.json) and [Lc0 recipe](../core/domain/recipes/lc0.json) are bundled, typed JSON. They describe the official repository and release tag format, the earliest supported source family, source layout and version-dependent build capabilities. Rust interprets these rules, invokes tools with structured arguments and records the recipe ID and exact source commit. The library fetches tags explicitly from the official repository. An unfamiliar source layout is reported as **Needs recipe update** before compilation where the recipe can detect the mismatch.
