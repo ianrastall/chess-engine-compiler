@@ -79,6 +79,7 @@ public sealed partial class MainWindow
         OptionsScroll.ChangeView(null, OptionsScroll.ScrollableHeight, null, true);
         Root.UpdateLayout(); await Task.Delay(150);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "lc0-tools.png"));
+        OptionsScroll.ChangeView(null, 0, null, true);
         SelectEngine("stockfish");
         ShowArea("library");
         LibraryResults.SelectedIndex = 0;
@@ -88,7 +89,12 @@ public sealed partial class MainWindow
         ManageWeights_Click(LibraryWeightsButton, null!);
         Require(_engine == "lc0" && OptionsScroll.Visibility == Visibility.Visible && DownloadWeightsButton.IsEnabled,
             "The release row did not open the Lc0 weights controls.");
+        await Task.Delay(150);
+        var downloadButtonTop = DownloadWeightsButton.TransformToVisual(OptionsScroll).TransformPoint(new Windows.Foundation.Point()).Y;
+        Require(downloadButtonTop >= 0 && downloadButtonTop + DownloadWeightsButton.ActualHeight <= OptionsScroll.ActualHeight + 1,
+            "The release row did not scroll to the weights controls.");
         Require(Options().WeightsPath == lc0.WeightsPath, "Opening weights controls changed the custom weights selection.");
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "lc0-weights.png"));
         SelectEngine("stockfish");
         OptionsScroll.ChangeView(null, 0, null, true);
         Root.UpdateLayout(); await Task.Delay(150);

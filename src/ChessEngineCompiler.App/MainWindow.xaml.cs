@@ -316,7 +316,8 @@ public sealed partial class MainWindow : Window
         if (_active || ToolSetupPane.SetupActive) return;
         Engine.SelectedIndex = EngineCatalog.Index("lc0");
         ShowArea("compile");
-        DispatcherQueue.TryEnqueue(() => Lc0WeightsOptions.StartBringIntoView());
+        Root.UpdateLayout();
+        OptionsScroll.ChangeView(null, OptionsScroll.ScrollableHeight, null, true);
     }
     private void OpenWeightsFolder_Click(object sender, RoutedEventArgs e)
     {
