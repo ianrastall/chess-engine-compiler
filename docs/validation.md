@@ -232,3 +232,17 @@ The full local build passed formatting, strict Clippy, 21 domain tests, the ABI 
 Windows CI passed for the release commit, including installation, upgrade, uninstall with data preservation, reinstallation and Start Menu registration. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/41798225510)
 
 The v1.0.0 release tag resolves to the installed build's commit. The published installer, portable ZIP and checksum file match the local SHA-256 digests. [Release v1.0.0](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v1.0.0)
+
+## Version 1.0.1 — Lc0 weights
+
+On 8 November 2026, the installed Release library opened the Lc0 weights controls directly from a selected release row. The WinUI check exercises this action from Stockfish, checks that the download button is in the viewport and confirms that an existing custom selection is preserved. A live app check also verified reuse and selection of the cached default. Other networks are downloaded through the upstream catalogue and selected as local files.
+
+A fresh CLI download into the ignored `target/lc0-weights-validation-1.0.1` folder matched the recipe's 37,118,673-byte size and SHA-256. A second request reused the verified file. Two simultaneous requests from the installed CLI left one verified file and no partial files. A regression test confirmed that an existing file that fails verification is preserved. Both Lc0 releases reported **Blocked** with a missing custom path and **Ready** once the downloaded file was selected.
+
+A fresh managed build of Lc0 `v0.32.1` at `fd71a2d921b689c5f479d3227c3806c8e272d9c5` used the downloaded T1 file. The result manifest recorded the selected path and matching SHA-256. The saved log showed `uciok`, `readyok`, and a 32-node `cuda-fp16` search on the GTX 1660 Ti with CUDA 12.9. The executable and source/dependency archives were retained with the manifest and log. This source build covers the new download workflow on CUDA with the default network.
+
+`pwsh -File build/build.ps1` passed formatting, strict Clippy, 22 Rust domain tests, the ABI test, managed/native integration, and WinUI log and release-library checks. The existing Jupiter.UI XML documentation warning remains. The installer and portable ZIP were generated for `1.0.1+e50277dccea38eb93343ad32089ce9aa82e26fd1`. The installed UI checks passed, the Start Menu shortcut launched that build, and nine existing settings and network files retained their SHA-256 hashes through final installation.
+
+The v1.0.1 tag resolves to the installed build's commit. The published installer, portable ZIP and checksum file match the local SHA-256 digests. [Release v1.0.1](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v1.0.1)
+
+Windows CI passed for the release commit, including the installer lifecycle and Start Menu registration checks. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/42461001531)
