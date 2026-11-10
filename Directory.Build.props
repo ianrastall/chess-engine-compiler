@@ -3,7 +3,7 @@
     <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Authors>Ian Rastall</Authors>
     <Product>Jupiter · Chess Engine Compiler</Product>
     <Platforms>x64</Platforms>

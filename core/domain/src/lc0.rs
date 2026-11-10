@@ -89,12 +89,8 @@ pub(super) fn plan(o: &BuildOptions) -> Result<Plan> {
     if o.weights_path.is_empty() && o.release_id == 0 {
         return Err("Choose an Lc0 network weights file (.pb.gz or .pb). It is required for the standalone search test and is copied into the result.".into());
     }
-    if !o.weights_path.is_empty() && (!weights.is_absolute() || !weights.is_file()) {
-        return Err(if o.release_id != 0 {
-            "The selected Lc0 weights file was not found. Open Manage Lc0 weights to choose a file or use the default network."
-        } else {
-            "The selected Lc0 weights file was not found. Browse for the file or download the default network."
-        }.into());
+    if !o.weights_path.is_empty() {
+        validate_weights_path(weights, o.release_id != 0)?;
     }
     if git_executable(Path::new("")).is_none() {
         return Err("Install Git for Windows and restart the app.".into());
@@ -116,6 +112,17 @@ pub(super) fn plan(o: &BuildOptions) -> Result<Plan> {
         "Verify UCI and a real neural-network search from the result with a clean runtime PATH".into(),
         "Save source/dependency archives, licenses, network SHA-256, versions, commit, manifest and full log".into(),
     ] })
+}
+
+pub(super) fn validate_weights_path(weights: &Path, managed: bool) -> Result<()> {
+    if weights.is_absolute() && weights.is_file() {
+        return Ok(());
+    }
+    Err(if managed {
+        "The selected Lc0 weights file was not found. Open Manage Lc0 weights to choose a file or use the default network."
+    } else {
+        "The selected Lc0 weights file was not found. Browse for the file or download the default network."
+    }.into())
 }
 
 fn environment(o: &BuildOptions, cancel: &AtomicBool) -> Result<Vec<(String, String)>> {

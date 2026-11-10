@@ -103,7 +103,7 @@ type ReleaseKey = (String, u64, String, String);
 
 #[derive(Default)]
 struct History {
-    verified: HashMap<ReleaseKey, (PathBuf, Row)>,
+    verified: HashMap<(ReleaseKey, String), (PathBuf, Row)>,
     attempts: HashMap<ReleaseKey, (PathBuf, Row)>,
 }
 
@@ -115,9 +115,9 @@ struct Attempt {
     row: Row,
 }
 
-fn remember(
-    index: &mut HashMap<ReleaseKey, (PathBuf, Row)>,
-    key: ReleaseKey,
+fn remember<K: Eq + std::hash::Hash>(
+    index: &mut HashMap<K, (PathBuf, Row)>,
+    key: K,
     folder: &Path,
     row: Row,
 ) {
@@ -174,6 +174,21 @@ fn history(root: &Path) -> History {
         {
             continue;
         }
+        let weights_sha256 = if options.engine == "lc0" {
+            let Some(name @ ("weights.pb" | "weights.pb.gz")) = manifest["weightsFile"].as_str()
+            else {
+                continue;
+            };
+            let Some(digest) = manifest["weightsSha256"].as_str() else {
+                continue;
+            };
+            if !folder.join(name).is_file() {
+                continue;
+            }
+            digest.to_owned()
+        } else {
+            String::new()
+        };
         let exe = folder.join(format!("{}.exe", options.engine));
         if exe.is_file() {
             let key = (
@@ -184,7 +199,7 @@ fn history(root: &Path) -> History {
             );
             remember(
                 &mut history.verified,
-                key,
+                (key, weights_sha256),
                 &job,
                 Row {
                     engine: options.engine,
@@ -198,6 +213,18 @@ fn history(root: &Path) -> History {
         }
     }
     history
+}
+
+fn requested_weights_digest(options: &BuildOptions) -> Result<String> {
+    if options.engine != "lc0" {
+        return Ok(String::new());
+    }
+    if options.weights_path.is_empty() {
+        return Ok(recipes::LC0.network.sha256.clone());
+    }
+    let path = Path::new(&options.weights_path);
+    lc0::validate_weights_path(path, true)?;
+    recipes::sha256(path)
 }
 
 fn entries(query: &Query) -> Result<Vec<Entry>> {
@@ -219,6 +246,7 @@ fn entries(query: &Query) -> Result<Vec<Entry>> {
         };
         let root = Path::new(&defaults.output_root);
         let index = indexes.entry(root).or_insert_with(|| history(root));
+        let weights_digest = requested_weights_digest(defaults);
         for (rank, release) in catalog.releases.iter().enumerate() {
             if (query.scope == 0 && rank >= 2 && catalog.baseline.contains(&release.id))
                 || (query.scope == 1 && rank != 0)
@@ -245,12 +273,17 @@ fn entries(query: &Query) -> Result<Vec<Entry>> {
                 row.tag.clone(),
                 options.backend.clone(),
             );
-            if let Some((_, verified)) = index.verified.get(&key) {
+            if let Ok(digest) = &weights_digest
+                && let Some((_, verified)) = index.verified.get(&(key.clone(), digest.clone()))
+            {
                 row = verified.clone();
             } else if !rule.accepts(&row.tag) {
                 row.state = "Needs recipe update".into();
                 row.message =
                     "This release is outside the current recipe's supported source family.".into();
+            } else if let Err(error) = &weights_digest {
+                row.state = "Blocked".into();
+                row.message = error.clone();
             } else {
                 match plan(&options) {
                     Ok(resolved) => {
@@ -530,5 +563,72 @@ mod tests {
         assert_eq!(preview(&query).unwrap().len(), 1);
         query.scope = 2;
         assert_eq!(preview(&query).unwrap().len(), 4);
+    }
+
+    #[test]
+    fn lc0_reuses_only_results_with_matching_weights() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let python = root.join("python.exe");
+        let vcvars = root.join("VC/Auxiliary/Build/vcvarsall.bat");
+        fs::create_dir_all(vcvars.parent().unwrap()).unwrap();
+        fs::write(&vcvars, []).unwrap();
+        fs::write(&python, []).unwrap();
+        let mut options = BuildOptions {
+            engine: "lc0".into(),
+            backend: "eigen".into(),
+            output_root: root.to_string_lossy().into_owned(),
+            python_path: python.to_string_lossy().into_owned(),
+            visual_studio: root.to_string_lossy().into_owned(),
+            release_id: 1,
+            source_ref: "v0.32.1".into(),
+            ..BuildOptions::default()
+        };
+        observe(
+            root,
+            "lc0",
+            vec![github::SourceVersion {
+                id: options.release_id,
+                reference: options.source_ref.clone(),
+                ..Default::default()
+            }],
+            None,
+        )
+        .unwrap();
+        let custom = root.join("custom.pb.gz");
+        fs::write(&custom, b"custom weights").unwrap();
+        let custom_digest = recipes::sha256(&custom).unwrap();
+        for (job, digest) in [
+            ("1", recipes::LC0.network.sha256.as_str()),
+            ("2", custom_digest.as_str()),
+        ] {
+            let result = root.join("jobs").join(job).join("result");
+            fs::create_dir_all(&result).unwrap();
+            fs::write(result.join("lc0.exe"), b"fixture").unwrap();
+            fs::write(result.join("weights.pb.gz"), b"fixture").unwrap();
+            let manifest = serde_json::json!({
+                "options": options, "uciVerified": true, "standaloneSearchVerified": true,
+                "recipe": recipes::LC0.release.id, "weightsFile": "weights.pb.gz",
+                "weightsSha256": digest,
+            });
+            fs::write(result.join("build.json"), manifest.to_string()).unwrap();
+            options.weights_path = custom.to_string_lossy().into_owned();
+        }
+        let mut query = Query {
+            catalog_root: root.to_string_lossy().into_owned(),
+            options: vec![options],
+            scope: 0,
+        };
+        let row = || preview(&query).unwrap().remove(0);
+        assert_eq!(Path::new(&row().output), root.join("jobs/2/result/lc0.exe"));
+        fs::write(&custom, b"replacement weights at the same path").unwrap();
+        assert_eq!(row().state, "Ready");
+        fs::remove_file(&custom).unwrap();
+        assert_eq!(row().state, "Blocked");
+        query.options[0].weights_path.clear();
+        let row = || preview(&query).unwrap().remove(0);
+        assert_eq!(Path::new(&row().output), root.join("jobs/1/result/lc0.exe"));
+        fs::remove_file(root.join("jobs/1/result/weights.pb.gz")).unwrap();
+        assert_eq!(row().state, "Ready");
     }
 }

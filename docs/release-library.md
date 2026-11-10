@@ -8,6 +8,8 @@ Select **Build new releases** to start the queue. Jobs run in order with a separ
 
 For an Lc0 row, **Manage Lc0 weights** opens the controls for selecting a file, downloading the verified default, browsing the official catalogue, and opening the persistent weights folder. See [Lc0 builds](lc0.md#backend-and-network).
 
+The library reuses an Lc0 result when the release, backend and weights SHA-256 match and the executable and bundled weights are still present. A copy of the same network can reuse the result. Selecting different weights makes the release eligible to build again, with the previous job kept in its own folder.
+
 ## Build recipes
 
 The [Stockfish recipe](../core/domain/recipes/stockfish.json) and [Lc0 recipe](../core/domain/recipes/lc0.json) are bundled, typed JSON. They describe the official repository and release tag format, the earliest supported source family, source layout and version-dependent build capabilities. Rust interprets these rules, invokes tools with structured arguments and records the recipe ID and exact source commit. The library fetches tags explicitly from the official repository. An unfamiliar source layout is reported as **Needs recipe update** before compilation where the recipe can detect the mismatch.
