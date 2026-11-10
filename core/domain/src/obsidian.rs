@@ -1,7 +1,6 @@
 use super::*;
 use sha2::{Digest, Sha256};
 
-const REPOSITORY: &str = "https://github.com/gab8192/Obsidian";
 const NETWORK_BASE: &str = "https://github.com/gab8192/Obsidian-nets/releases/download/nets";
 pub(super) fn defaults() -> BuildOptions {
     BuildOptions {
@@ -64,6 +63,8 @@ pub(super) fn build(
     )
     .map_err(|e| e.to_string())?;
     let git = git_executable(root).ok_or("Git was not found.")?;
+    let recipe = &recipes::OBSIDIAN;
+    let repository = format!("https://github.com/{}", recipe.repository);
     let source = job.join("source");
     fs::create_dir(&source).map_err(|e| e.to_string())?;
     let git_run = |args: &[&str]| {
@@ -82,10 +83,35 @@ pub(super) fn build(
     };
     phase(shared, "Fetch Obsidian source");
     git_run(&["init", "--quiet"])?;
-    git_run(&["remote", "add", "origin", &format!("{REPOSITORY}.git")])?;
-    git_run(&["fetch", "--depth=1", "origin", &o.source_ref])?;
+    git_run(&["remote", "add", "origin", &format!("{repository}.git")])?;
+    let source_ref = if o.release_id == 0 {
+        o.source_ref.clone()
+    } else {
+        format!("refs/tags/{}", o.source_ref)
+    };
+    git_run(&["fetch", "--depth=1", "origin", &source_ref])?;
     git_run(&["checkout", "--detach", "FETCH_HEAD"])?;
     let commit = git_run(&["rev-parse", "HEAD"])?;
+    let layout_error = |error: String| {
+        if o.release_id == 0 {
+            error
+        } else {
+            recipes::needs_recipe(error)
+        }
+    };
+    let makefile = fs::read_to_string(source.join("Makefile"))
+        .map_err(|error| layout_error(format!("Obsidian Makefile: {error}")))?;
+    let network = network_name(&makefile).map_err(layout_error)?;
+    let original_flags = makefile
+        .lines()
+        .find_map(|line| line.strip_prefix("FLAGS = "))
+        .filter(|flags| flags.contains("-s "))
+        .ok_or_else(|| layout_error("Unsupported Obsidian compiler flags.".into()))?;
+    if o.release_id != 0 && !makefile.lines().any(|line| line.starts_with("nopgo:")) {
+        return Err(recipes::needs_recipe(
+            "Obsidian Makefile has no nopgo target.",
+        ));
+    }
     let src = source.clone();
     let make = |args: &[&str]| {
         run(
@@ -114,8 +140,6 @@ pub(super) fn build(
         None,
     )?;
     phase(shared, "Download embedded network");
-    let makefile = fs::read_to_string(src.join("Makefile")).map_err(|e| e.to_string())?;
-    let network = network_name(&makefile)?;
     let network_url = format!("{NETWORK_BASE}/{network}");
     run(
         Command::new(root.join("usr/bin/curl.exe"))
@@ -137,13 +161,6 @@ pub(super) fn build(
     let network_hash = format!("{:x}", hasher.finalize());
     // Override the upstream flags to honor symbol retention and avoid its
     // Windows PGO directory bug. Architecture flags remain upstream-owned.
-    let original_flags = makefile
-        .lines()
-        .find_map(|line| line.strip_prefix("FLAGS = "))
-        .ok_or("The selected source has an unsupported Makefile (FLAGS).")?;
-    if !original_flags.contains("-s ") {
-        return Err("Unsupported Obsidian compiler flags.".into());
-    }
     // Keep make variable expansion, including the source-selected network and
     // optimization flags. Never construct a shell command from user input.
     let base_flags = original_flags.replacen("-s ", "", 1) + " -static";
@@ -242,7 +259,7 @@ pub(super) fn build(
     if source.join("LICENSE").is_file() {
         fs::copy(source.join("LICENSE"), result.join("LICENSE")).map_err(|e| e.to_string())?;
     }
-    let manifest = serde_json::json!({ "schemaVersion": 2, "engine": "obsidian", "sourceUrl": REPOSITORY, "commit": commit.trim(), "options": o, "compiler": compiler, "network": network, "networkSha256": network_hash, "networkUrl": network_url, "networkEmbedded": true, "networkDigestVerifiedAgainstUpstream": false, "pgoProfilesApplied": o.pgo, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar" });
+    let manifest = serde_json::json!({ "schemaVersion": 2, "engine": "obsidian", "sourceUrl": repository, "commit": commit.trim(), "options": o, "compiler": compiler, "recipe": recipe.id, "network": network, "networkSha256": network_hash, "networkUrl": network_url, "networkEmbedded": true, "networkDigestVerifiedAgainstUpstream": false, "pgoProfilesApplied": o.pgo, "uciVerified": true, "standaloneSearchVerified": true, "logPath": job.join("build.log"), "sourceArchive": "source.tar" });
     fs::write(
         result.join("build.json"),
         serde_json::to_vec_pretty(&manifest).unwrap(),

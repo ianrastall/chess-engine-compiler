@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "id": "obsidian-ucrt64-gcc-v1",
+  "repository": "gab8192/Obsidian",
+  "tagPrefix": "v",
+  "versionParts": 2,
+  "minimumVersion": [15, 0, 0]
+}

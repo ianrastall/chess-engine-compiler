@@ -23,14 +23,18 @@ public sealed partial class MainWindow
         if (File.Exists(path)) options = ReadOptions(File.ReadAllText(path));
         options.Engine = engine;
         if (options.OutputRoot.Length == 0) options.OutputRoot = Model.OutputRoot;
+        if (engine == "obsidian" && options.MsysRoot.Length == 0)
+            options.MsysRoot = _engineOptions["stockfish"].MsysRoot;
         return options;
     }
 
     private LibraryQuery LibraryRequest()
     {
         var request = new LibraryQuery { CatalogRoot = CatalogRoot, Scope = (LibraryQuery.Types.Scope)LibraryScope.SelectedIndex };
-        if (LibraryEngine.SelectedIndex != 2) request.Options.Add(LibraryOptions("stockfish"));
-        if (LibraryEngine.SelectedIndex != 1) request.Options.Add(LibraryOptions("lc0"));
+        var selected = (LibraryEngine.SelectedItem as EngineEntry)?.Id;
+        foreach (var engine in EngineCatalog.LibraryOrder)
+            if (string.IsNullOrEmpty(selected) || selected == engine.Id)
+                request.Options.Add(LibraryOptions(engine.Id));
         return request;
     }
 
@@ -56,9 +60,10 @@ public sealed partial class MainWindow
         var errors = new List<string>();
         try
         {
-            foreach (var engine in new[] { "stockfish", "lc0" })
+            foreach (var entry in EngineCatalog.LibraryOrder)
             {
                 if (_skipLibraryCheck || _closing) break;
+                var engine = entry.Id;
                 LibraryStatus.Text = $"Checking {EngineName(engine)} releases…";
                 try
                 {

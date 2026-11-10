@@ -34,8 +34,8 @@ public sealed partial class MainWindow : Window
     private static readonly string[] Engines = EngineCatalog.Items.Select(e => e.Id).ToArray();
     private static string EngineName(string engine) => EngineCatalog.Name(engine);
     private string OptionsPath(string engine) => engine == "stockfish" ? ConfigPath : Path.Combine(DataFolder, $"{engine}-options.json");
-    private string RecommendedArchitecture => _hardware.Recommended;
-    private IEnumerable<string> ArchitectureChoices => _hardware.Choices;
+    private string RecommendedArchitecture => _engine == "obsidian" ? _hardware.ObsidianRecommended : _hardware.Recommended;
+    private IEnumerable<string> ArchitectureChoices => _engine == "obsidian" ? _hardware.ObsidianChoices : _hardware.Choices;
     public BuildViewModel Model { get; } = new();
     public MainWindow(string? dataFolder = null)
     {
@@ -43,6 +43,8 @@ public sealed partial class MainWindow : Window
         _verification = dataFolder is not null;
         InitializeComponent();
         Engine.ItemsSource = EngineCatalog.Items;
+        LibraryEngine.ItemsSource = new[] { new EngineEntry("", "All engines") }.Concat(EngineCatalog.Items).ToArray();
+        LibraryEngine.SelectedIndex = 0;
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
         _logPresenter = new LogPresenter(LogScroll, Log, FollowOutput, LogViewStatus);
         Title = "Chess Engine Compiler";
@@ -123,24 +125,25 @@ public sealed partial class MainWindow : Window
         Engine.SelectedIndex = Array.IndexOf(Engines, _engine);
         ShowArchitectures();
         Model.SourceRef = options.SourceRef; Model.MsysRoot = options.MsysRoot; Model.OutputRoot = options.OutputRoot;
-        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && _engine == "stockfish"; Strip.IsChecked = options.Strip;
+        var lc0 = _engine == "lc0";
+        Jobs.Value = options.Jobs; Pgo.IsChecked = options.Pgo && !lc0; Strip.IsChecked = options.Strip;
         AutoArchitecture.IsChecked = options.AutoArchitecture;
         foreach (ComboBoxItem item in Architecture.Items) if ((string)item.Content == options.Architecture) Architecture.SelectedItem = item;
         PythonPath.Text = options.PythonPath; VisualStudio.Text = options.VisualStudio;
         CudaRoot.Text = options.CudaRoot; WeightsPath.Text = options.WeightsPath;
         Backend.SelectedIndex = options.Backend == "eigen" ? 1 : 0;
-        var stockfish = _engine == "stockfish";
         CpuBuildOptions.Visibility = MsysOptions.Visibility = Pgo.Visibility = AutoArchitecture.Visibility =
-            stockfish ? Visibility.Visible : Visibility.Collapsed;
-        Lc0Options.Visibility = stockfish ? Visibility.Collapsed : Visibility.Visible;
+            lc0 ? Visibility.Collapsed : Visibility.Visible;
+        Lc0Options.Visibility = lc0 ? Visibility.Visible : Visibility.Collapsed;
         SourceRef.IsReadOnly = SourceChannel.SelectedIndex != 2;
         CompileButton.Content = StartMenu.Text = $"Compile {EngineName(_engine)}";
-        SourceHint.Text = stockfish
-            ? "Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit."
-            : "Default: Lc0 v0.32.1. Choose your network below. The release library can supply a verified default network.";
-        ToolTipService.SetToolTip(SourceRef, stockfish
-            ? "Select a Stockfish release tag, branch or exact commit."
-            : "Select an Lc0 release tag, branch or exact commit. The build fetches its pinned common submodule.");
+        SourceHint.Text = _engine switch
+        {
+            "lc0" => "Default: Lc0 v0.32.1. Choose your network below. The release library can supply a verified default network.",
+            "obsidian" => "Default: Obsidian v16.0. The source selects the network to embed.",
+            _ => "Default: Stockfish 19 (sf_19). Use master for development source, or enter a tag or commit.",
+        };
+        ToolTipService.SetToolTip(SourceRef, $"Select a {EngineName(_engine)} release tag, branch or exact commit.");
         _loadingOptions = false;
         AutoArchitecture_Changed(this, null!);
         Backend_Changed(this, null!);
@@ -150,7 +153,9 @@ public sealed partial class MainWindow : Window
         Architecture.Items.Clear();
         foreach (var choice in ArchitectureChoices) Architecture.Items.Add(new ComboBoxItem { Content = choice });
         Architecture.SelectedIndex = Architecture.Items.Count > 0 ? 0 : -1;
-        ArchitectureExplanation.Text = _hardware.Explanation;
+        ArchitectureExplanation.Text = _engine == "obsidian"
+            ? $"Recommended Obsidian target: {_hardware.ObsidianRecommended}."
+            : _hardware.Explanation;
     }
     private void Engine_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -166,6 +171,8 @@ public sealed partial class MainWindow : Window
                 next.OutputRoot = previous.OutputRoot; next.Jobs = previous.Jobs;
                 var path = OptionsPath(engine);
                 if (File.Exists(path)) next = ReadOptions(File.ReadAllText(path));
+                if (engine == "obsidian" && next.MsysRoot.Length == 0)
+                    next.MsysRoot = _engineOptions["stockfish"].MsysRoot;
             }
             LoadOptions(next);
             _loadingSources = true;
@@ -370,9 +377,12 @@ public sealed partial class MainWindow : Window
         catch (Exception error) { ShowProblem(error.Message); }
     }
     private void Result_Click(object sender, RoutedEventArgs e) { if (File.Exists(_output)) OpenPath(Path.GetDirectoryName(_output)!); }
-    private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine == "lc0"
-        ? "https://github.com/LeelaChessZero/lc0/releases"
-        : "https://github.com/official-stockfish/Stockfish/releases");
+    private void Releases_Click(object sender, RoutedEventArgs e) => OpenPath(_engine switch
+    {
+        "lc0" => "https://github.com/LeelaChessZero/lc0/releases",
+        "obsidian" => "https://github.com/gab8192/Obsidian/releases",
+        _ => "https://github.com/official-stockfish/Stockfish/releases",
+    });
     private void Networks_Click(object sender, RoutedEventArgs e) => OpenPath("https://lczero.org/play/networks/bestnets/");
     private void Log_Click(object sender, RoutedEventArgs e) { if (File.Exists(_logPath)) OpenPath(_logPath); }
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -432,7 +442,7 @@ public sealed partial class MainWindow : Window
         {
             Text = _engine == "lc0"
                 ? "Lc0 requires Git, Python with Meson and Ninja, and the Visual Studio x64 C++ tools and Windows SDK. NVIDIA GPU builds also need a compatible CUDA Toolkit and driver. Use Settings > Build tools for setup. The release library can supply a verified default network."
-                : "Stockfish requires Git and MSYS2 UCRT64 GCC, make and download tools. Select the MSYS2 installation root. Use Settings > Build tools to check and install prerequisites.",
+                : $"{EngineName(_engine)} requires Git and MSYS2 UCRT64 GCC, make and download tools. Select the MSYS2 installation root. Use Settings > Build tools to check and install prerequisites.",
             TextWrapping = TextWrapping.Wrap,
         },
     }.ShowAsync();

@@ -139,7 +139,6 @@ fn repository(engine: &str) -> Result<&'static str> {
     }
     match engine {
         "berserk" => Ok("jhonnold/berserk"),
-        "obsidian" => Ok("gab8192/Obsidian"),
         "reckless" => Ok("codedeliveryservice/Reckless"),
         "igel" => Ok("vshcherbyna/igel"),
         "caissa" => Ok("Witek902/Caissa"),

@@ -15,7 +15,7 @@ public sealed partial class MainWindow
         void SelectEngine(string id) => Engine.SelectedIndex = EngineCatalog.Index(id);
         if (!EngineCatalog.Items.Select(e => e.Name).SequenceEqual(EngineCatalog.Items.Select(e => e.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase))) throw new InvalidOperationException("Engine dropdown is not alphabetical.");
         static void Require(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
-        Require(EngineCatalog.Items.Select(e => e.Id).SequenceEqual(new[] { "lc0", "stockfish" }), "The 1.0 catalog must contain Stockfish and Lc0.");
+        Require(EngineCatalog.Items.Select(e => e.Id).SequenceEqual(new[] { "lc0", "obsidian", "stockfish" }), "The catalog must contain Stockfish, Lc0 and Obsidian.");
         Require(LibraryPane.Visibility == Visibility.Visible && OptionsScroll.Visibility == Visibility.Collapsed, "The release library is not the startup view.");
         Directory.CreateDirectory(CatalogRoot);
         void Fixture(string engine, string[] tags)
@@ -26,11 +26,14 @@ public sealed partial class MainWindow
         }
         Fixture("stockfish", ["sf_19", "sf_18", "sf_12"]);
         Fixture("lc0", ["v0.32.1", "v0.32.0", "v0.31.2"]);
+        Fixture("obsidian", ["v16.0", "v15.0", "v14.0"]);
         PreviewLibrary();
-        Require(_libraryRows.Select(row => row.Tag).SequenceEqual(new[] { "sf_19", "v0.32.1", "sf_18", "v0.32.0" }), "The release library did not order the two initial releases newest first across engines.");
+        Require(_libraryRows.Select(row => row.Tag).SequenceEqual(new[] { "sf_19", "v0.32.1", "v16.0", "sf_18", "v0.32.0", "v15.0" }), "The release library did not order the two initial releases newest first across engines.");
         LibraryScope.SelectedIndex = 2;
-        Require(_libraryRows.Count(row => row.State == "Needs recipe update") == 2, "Unsupported historical recipes were not labeled.");
-        LibraryEngine.SelectedIndex = 2;
+        Require(_libraryRows.Count(row => row.State == "Needs recipe update") == 3, "Unsupported historical recipes were not labeled.");
+        LibraryEngine.SelectedIndex = EngineCatalog.Index("obsidian") + 1;
+        Require(_libraryRows.All(row => row.Engine == "obsidian") && _libraryRows.Length == 3, "The Obsidian library filter did not apply.");
+        LibraryEngine.SelectedIndex = EngineCatalog.Index("lc0") + 1;
         Require(_libraryRows.All(row => row.Engine == "lc0") && _libraryRows.Length == 3, "The library engine filter did not apply.");
         LibraryEngine.SelectedIndex = 0;
         LibraryScope.SelectedIndex = 0;
@@ -53,6 +56,16 @@ public sealed partial class MainWindow
         Model.SourceRef = "sf_19"; Model.OutputRoot = @"D:\Example output";
         Jobs.Value = 2; Pgo.IsChecked = true; Architecture.SelectedIndex = 3;
         var stockfish = Options();
+        SelectEngine("obsidian");
+        Require(_engine == "obsidian" && Model.SourceRef == "v16.0" && CompileButton.Content.ToString() == "Compile Obsidian", "Obsidian source or action is wrong.");
+        Require(MsysOptions.Visibility == Visibility.Visible && Pgo.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed, "Obsidian did not select its own controls.");
+        Require(!Architecture.IsEnabled && Options().Architecture == _hardware.ObsidianRecommended &&
+            Architecture.Items.Cast<ComboBoxItem>().Select(item => (string)item.Content).SequenceEqual(_hardware.ObsidianChoices),
+            "Obsidian did not use its own CPU target choices.");
+        Pgo.IsChecked = true;
+        var obsidian = Options();
+        await Task.Delay(150);
+        await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "obsidian.png"));
         SelectEngine("lc0");
         Require(_engine == "lc0" && Lc0Options.Visibility == Visibility.Visible && CpuBuildOptions.Visibility == Visibility.Collapsed && MsysOptions.Visibility == Visibility.Collapsed, "Lc0 did not select its own controls.");
         Require(Model.SourceRef == "v0.32.1" && CompileButton.Content.ToString() == "Compile Lc0", "Lc0 source or action is wrong.");
@@ -64,6 +77,8 @@ public sealed partial class MainWindow
         SelectEngine("stockfish");
         Require(_engine == "stockfish" && CpuBuildOptions.Visibility == Visibility.Visible && Lc0Options.Visibility == Visibility.Collapsed, "Stockfish controls were not restored.");
         Require(Options().Equals(stockfish), "Switching engines changed Stockfish selections.");
+        SelectEngine("obsidian");
+        Require(Options().Equals(obsidian), "Switching engines lost Obsidian selections.");
         SelectEngine("lc0");
         Require(Options().Equals(lc0), "Switching engines lost Lc0 selections.");
         Backend.SelectedIndex = 0;
@@ -110,7 +125,7 @@ public sealed partial class MainWindow
         await ToolSetupPane.VerifyControlsAsync();
         ToolSetupPane.StartBringIntoView(); Root.UpdateLayout(); await Task.Delay(200);
         await CaptureUiAsync(Path.Combine(Path.GetDirectoryName(report)!, "build-tools.png"));
-        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, the startup release library, initial ordering, scope and engine filters, unsupported recipe status, switching across both engines, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
+        File.WriteAllText(report, "PASS: real WinUI alphabetical engine selection, the startup release library, initial ordering, scope and engine filters, unsupported recipe status, switching across all three engines, separate option retention, per-engine automatic/manual architecture targets, official/development/custom source selection, SHA pinning, CUDA visibility, highlighted log, independent downloads/expiry controls, navigation to the settings page with the shared accent control, and rendered layouts. No build or shared preference mutation.");
     }
 
     private async Task CaptureUiAsync(string path)

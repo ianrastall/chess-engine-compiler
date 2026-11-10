@@ -3,6 +3,7 @@
   "id": "lc0-msvc-meson-v1",
   "repository": "LeelaChessZero/lc0",
   "tagPrefix": "v",
+  "versionParts": 3,
   "minimumVersion": [0, 32, 0],
   "optionFiles": ["meson.options", "meson_options.txt"],
   "requiredOptions": ["blas", "plain_cuda", "default_backend"],

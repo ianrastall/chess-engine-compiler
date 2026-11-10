@@ -81,3 +81,7 @@ Ian prioritized Patricia, Koivisto and Seer for the next batch. The adapters bui
 ## Version 1.0
 
 Ian selected Stockfish and Lc0 as the two engines for a release-driven redesign. The main workspace discovers stable releases on startup and prepares a cumulative queue, starting with two releases per engine. Build recipes describe supported upstream source families and validate their capabilities after checkout. Manual builds, build scripts, logs and tool setup use the same Rust core. Earlier engine adapters remain available for existing CLI configurations. See [Release library and build recipes](release-library.md).
+
+## Version 1.1
+
+Ian selected Obsidian as the third Release library engine. The managed recipe uses the existing GCC adapter, with automatic CPU selection, PGO and stripping. Advanced build and Downloads also expose Obsidian. See [Obsidian](obsidian.md).

@@ -9,6 +9,7 @@ pub(super) struct ReleaseRule {
     pub id: String,
     pub repository: String,
     tag_prefix: String,
+    version_parts: Option<usize>,
     minimum_version: [u32; 3],
 }
 
@@ -137,11 +138,14 @@ pub(super) static STOCKFISH: LazyLock<Stockfish> =
     LazyLock::new(|| serde_json::from_str(include_str!("../recipes/stockfish.json")).unwrap());
 pub(super) static LC0: LazyLock<Lc0> =
     LazyLock::new(|| serde_json::from_str(include_str!("../recipes/lc0.json")).unwrap());
+pub(super) static OBSIDIAN: LazyLock<ReleaseRule> =
+    LazyLock::new(|| serde_json::from_str(include_str!("../recipes/obsidian.json")).unwrap());
 
 pub(super) fn release_rule(engine: &str) -> Option<&'static ReleaseRule> {
     match engine {
         "stockfish" => Some(&STOCKFISH.release),
         "lc0" => Some(&LC0.release),
+        "obsidian" => Some(&OBSIDIAN),
         _ => None,
     }
 }
@@ -164,7 +168,7 @@ impl ReleaseRule {
             count += 1;
         }
         self.schema == 1
-            && (self.tag_prefix != "v" || count == 3)
+            && self.version_parts.is_none_or(|parts| count == parts)
             && numbers >= self.minimum_version
     }
 }

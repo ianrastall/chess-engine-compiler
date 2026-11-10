@@ -76,13 +76,11 @@
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <StackPanel Spacing="8">
                                 <TextBlock Text="Release library" Style="{StaticResource JupiterSectionHeadingTextStyle}"/>
-                                <ComboBox x:Name="LibraryEngine" Header="Engines" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="LibrarySelection_Changed">
-                                    <ComboBoxItem Content="Stockfish and Lc0"/><ComboBoxItem Content="Stockfish"/><ComboBoxItem Content="Lc0"/>
-                                </ComboBox>
+                                <ComboBox x:Name="LibraryEngine" Header="Engines" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="LibrarySelection_Changed"/>
                                 <ComboBox x:Name="LibraryScope" Header="Releases" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="LibrarySelection_Changed">
                                     <ComboBoxItem Content="New releases"/><ComboBoxItem Content="Latest release per engine"/><ComboBoxItem Content="All releases"/>
                                 </ComboBox>
-                                <TextBlock x:Name="LibraryStatus" Text="Check for stable releases from Stockfish and Lc0." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
+                                <TextBlock x:Name="LibraryStatus" Text="Check for stable engine releases." TextWrapping="Wrap" Style="{StaticResource JupiterCaptionTextStyle}"/>
                             </StackPanel>
                             <ListView x:Name="LibraryResults" Grid.Row="1" SelectionChanged="LibraryRow_Changed" AutomationProperties.Name="Release queue">
                                 <ListView.ItemTemplate>
@@ -185,7 +183,7 @@
                         <StackPanel x:Name="AdvancedActions" Grid.Row="1" Orientation="Horizontal" Spacing="8" Visibility="Collapsed">
                             <Button x:Name="CompileButton" Content="Compile Stockfish" Style="{StaticResource AccentButtonStyle}" Click="Start_Click"/>
                             <Button x:Name="PreviewButton" Content="Preview build" Click="Preview_Click" ToolTipService.ToolTip="Validate the selected settings and show the build steps without downloading source or starting compilation."/>
-                            <Button x:Name="SaveOptionsButton" Content="Save settings" Click="SaveOptions_Click" ToolTipService.ToolTip="Save tool paths, output folder and Lc0 backend or network for the release library."/>
+                            <Button x:Name="SaveOptionsButton" Content="Save settings" Click="SaveOptions_Click" ToolTipService.ToolTip="Save this engine’s settings for future builds."/>
                         </StackPanel>
                     </Grid>
 

@@ -228,7 +228,7 @@ fn requested_weights_digest(options: &BuildOptions) -> Result<String> {
 }
 
 fn entries(query: &Query) -> Result<Vec<Entry>> {
-    if query.scope > 2 || query.options.len() > 2 {
+    if query.scope > 2 {
         return Err("Select new releases, the latest release, or release history.".into());
     }
     let mut entries = Vec::new();
@@ -236,7 +236,7 @@ fn entries(query: &Query) -> Result<Vec<Entry>> {
     let mut indexes = HashMap::new();
     for defaults in &query.options {
         let engine = &defaults.engine;
-        let rule = recipes::release_rule(engine).ok_or("Select Stockfish or Lc0.")?;
+        let rule = recipes::release_rule(engine).ok_or("Select a supported library engine.")?;
         if !engines.insert(engine.as_str()) {
             return Err("Select each engine once.".into());
         }
@@ -256,7 +256,7 @@ fn entries(query: &Query) -> Result<Vec<Entry>> {
             let mut options = defaults.clone();
             options.release_id = release.id;
             options.source_ref = release.reference.clone();
-            if engine == "stockfish" {
+            if matches!(engine.as_str(), "stockfish" | "obsidian") {
                 options.auto_architecture = true;
                 options.pgo = true;
                 options.strip = true;
@@ -289,10 +289,10 @@ fn entries(query: &Query) -> Result<Vec<Entry>> {
                     Ok(resolved) => {
                         options = resolved.options;
                         row.state = "Ready".into();
-                        row.message = if engine == "stockfish" {
-                            format!("{} · PGO", options.architecture)
-                        } else {
+                        row.message = if engine == "lc0" {
                             options.backend.clone()
+                        } else {
+                            format!("{} · PGO", options.architecture)
                         };
                         if let Some((_, attempt)) = index.attempts.get(&key) {
                             row = attempt.clone();

@@ -37,7 +37,7 @@ public sealed partial class ToolSetupView : UserControl, IAsyncDisposable
         _options = new ToolSetupOptions { MsysRoot = o.MsysRoot, PythonPath = o.PythonPath, DestinationRoot = destination };
         EngineRequirements.Text = o.Engine == "lc0"
             ? "Lc0 requires Git, Python with Meson/Ninja, and Microsoft C++ build tools. CUDA additionally needs the NVIDIA toolkit and a compatible driver."
-            : "Stockfish requires MSYS2 with UCRT64 GCC, make, Git and download tools.";
+            : $"{EngineCatalog.Name(o.Engine)} requires MSYS2 with UCRT64 GCC, make, Git and download tools.";
         SelectedPaths.Text = $"MSYS2 root: {(o.MsysRoot.Length > 0 ? o.MsysRoot : "select it in Advanced build")}\nPython: {(o.PythonPath.Length > 0 ? o.PythonPath : "detected on PATH")}";
         var preferred = o.Engine == "lc0" ? "meson" : "gcc";
         _ = RefreshCatalogAsync(preferred);

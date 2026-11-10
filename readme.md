@@ -1,8 +1,8 @@
 # Chess Engine Compiler
 
-Jupiter desktop GUI for compiling Stockfish and Lc0 on Windows 11 x64.
+Jupiter desktop GUI for compiling Stockfish, Lc0 and Obsidian on Windows 11 x64.
 
-Version 1.0 opens on **Release library** and checks for stable releases in the background. Select one or both engines and choose **Build new releases**. The first queue includes the newest two releases of each engine. Later checks add newly published releases and keep verified results. Choose **Latest release per engine** or **All releases** to change the scope. See the [release workflow and recipe rules](docs/release-library.md).
+The app opens on **Release library** and checks for stable releases in the background. Select **All engines** or a single engine and choose **Build new releases**. The first queue includes the newest two releases of each engine. Later checks add newly published releases and keep verified results. Choose **Latest release per engine** or **All releases** to change the scope. See the [release workflow and recipe rules](docs/release-library.md).
 
 Use **Advanced build** for individual tags, branches or commits, manual CPU targets, Lc0 backend and weights choices, and script export. Jobs show live output and save the executable, exact source commit, settings, source archive and log.
 
@@ -28,9 +28,11 @@ Each build creates a new job folder below the selected output folder. **Open res
 
 **Follow output** keeps the newest log lines visible. Scrolling up, dragging the log scrollbar or selecting text pauses the view so incoming updates do not interrupt reading or copying. Re-enable **Follow output** to catch up; compilation continues while the view is paused. The full log remains available through **Open saved log**. Hover over build options for their meaning and practical tradeoffs, including PGO, architecture, jobs and symbol stripping.
 
-## Stockfish and Lc0
+## Engines
 
 Stockfish uses MSYS2 UCRT64 GCC. Managed builds use a compatible source-supported CPU target and profile-guided optimization. The engine's selected NNUE files are embedded.
+
+Obsidian also uses MSYS2 UCRT64 GCC. The library builds v15.0 and v16.0 with the recommended Obsidian CPU target and PGO. The source selects the embedded NNUE network, and the result passes UCI and a standalone benchmark. **Advanced build** offers manual targets and regular builds. See [Obsidian builds](docs/obsidian.md).
 
 Lc0 uses MSVC and Meson/Ninja. Choose NVIDIA CUDA or CPU Eigen in **Advanced build** and select **Save settings** to apply the choice to the library. The library can supply a verified default network. Each result includes the weights and any required CUDA runtime libraries and must pass a real standalone search. See [Lc0 tools, networks and build instructions](docs/lc0.md).
 
