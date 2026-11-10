@@ -256,3 +256,18 @@ The differing bytes were a planning fixture. This change uses the saved manifest
 `pwsh -File build/build.ps1` passed formatting, strict Clippy, 23 domain tests, the ABI test, managed/native integration and both WinUI checks. The existing Jupiter.UI XML documentation warning remains. The installer upgraded the app to `1.0.2+8a7a96df2aa6fac04c8a5021d3d82ddf46380a57` on Ian's machine, registered the uninstaller and preserved the SHA-256 hashes of 11 checked settings and result files. The Start Menu shortcut opened the installed GUI, and the installed WinUI check passed in isolated state. The local verification reports are in the ignored `target/lc0-result-reuse-1.0.2` folder.
 
 Windows CI passed installation, upgrade, uninstall with data preservation, reinstallation and Start Menu registration. The release tag resolves to the installed commit, and the three uploaded assets matched the local SHA-256 hashes. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/42760019820) · [Release v1.0.2](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v1.0.2)
+
+## Version 1.1.0 — Obsidian release library
+
+On 10 November 2026, the live Obsidian catalog selected v16.0 and v15.0. The managed queue fetched explicit release tags and built both from source in separate jobs with six parallel jobs, MSYS2 UCRT64 GCC 16.1.0, the automatic `avx2-pext` target, PGO and stripping. The saved logs show profile application with `-Werror=missing-profile`, `uciok`, `readyok` and a positive standalone benchmark with only System32 on PATH.
+
+| Tag | Resolved commit | Embedded network | Benchmark nodes |
+| --- | --- | --- | ---: |
+| v16.0 | `2838ce52c1a3f997cb1175b360cd8c6b2ae6791c` | `net87perm.bin` | 3,125,283 |
+| v15.0 | `328b493cce625aa97ae7dd55eb77e35af97f341e` | `net70.bin` | 3,658,427 |
+
+Both results contain the executable, source archive, license and manifest. The manifests identify the release ID and `obsidian-ucrt64-gcc-v1` recipe and record network SHA-256. The recorded hashes matched the downloaded files. Upstream network digests were unavailable. Evidence is in the ignored `target/obsidian-library-1.1.0` folder. This test covers these two releases on the local x64 CPU and GCC toolchain.
+
+The full build passed formatting, strict Clippy, 23 domain tests, the ABI test, managed/native integration and the WinUI log and engine-form checks. The existing Jupiter.UI XML documentation warning remains. WinUI verification covered the three-engine queue, Obsidian filtering, its CPU targets and independent settings. The installer upgraded 1.0.2 to `1.1.0+202d1cca53f7d415a3dde61cc0ab0bc2bfe820fd` and preserved the hashes of 16 checked settings and result files. The Start Menu shortcut launched the installed GUI, which discovered both Obsidian tags on startup. The installed CLI reused both verified builds, marked v14.0 as **Needs recipe update** and listed live v16.0 release assets.
+
+Windows CI passed installation, upgrade, uninstall with data preservation, reinstallation and Start Menu registration. The v1.1.0 tag resolves to the installed commit. The uploaded installer, portable ZIP and checksum file matched the local SHA-256 hashes. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/42766594472) · [Release v1.1.0](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v1.1.0)
