@@ -246,3 +246,13 @@ A fresh managed build of Lc0 `v0.32.1` at `fd71a2d921b689c5f479d3227c3806c8e272d
 The v1.0.1 tag resolves to the installed build's commit. The published installer, portable ZIP and checksum file match the local SHA-256 digests. [Release v1.0.1](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v1.0.1)
 
 Windows CI passed for the release commit, including the installer lifecycle and Start Menu registration checks. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/42461001531)
+
+## Version 1.0.2 — Lc0 result reuse
+
+On 9 November 2026, the release planner was checked against an isolated copy of the 1.0.1 Lc0 v0.32.1 CUDA build's executable, bundled network and unmodified manifest. The installed 1.0.1 CLI reported the result as **Verified** even with a different or missing weights file selected. The 1.0.2 CLI, both published and installed, reused the result for the recipe default and a renamed copy of the same network, reported **Ready** for different bytes and **Blocked** for a missing selected file. Removing the bundled network from the copied result also made it **Ready**. The Rust regression additionally covers replacing a weights file at the same path and choosing an older matching result over a newer result with different weights.
+
+The differing bytes were a planning fixture. This change uses the saved manifest digest and checks that the bundled weights file is present. Engine commands, source builds and verification searches use the existing paths. The copied result came from the real CUDA source build documented for 1.0.1.
+
+`pwsh -File build/build.ps1` passed formatting, strict Clippy, 23 domain tests, the ABI test, managed/native integration and both WinUI checks. The existing Jupiter.UI XML documentation warning remains. The installer upgraded the app to `1.0.2+8a7a96df2aa6fac04c8a5021d3d82ddf46380a57` on Ian's machine, registered the uninstaller and preserved the SHA-256 hashes of 11 checked settings and result files. The Start Menu shortcut opened the installed GUI, and the installed WinUI check passed in isolated state. The local verification reports are in the ignored `target/lc0-result-reuse-1.0.2` folder.
+
+Windows CI passed installation, upgrade, uninstall with data preservation, reinstallation and Start Menu registration. The release tag resolves to the installed commit, and the three uploaded assets matched the local SHA-256 hashes. [Windows CI run](https://github.com/ianrastall/chess-engine-compiler/actions/runs/42760019820) · [Release v1.0.2](https://github.com/ianrastall/chess-engine-compiler/releases/tag/v1.0.2)
